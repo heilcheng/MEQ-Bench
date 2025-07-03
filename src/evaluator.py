@@ -9,7 +9,11 @@ import json
 import requests
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Protocol
+from typing import Dict, List, Any, Optional, Protocol, Union, Callable, Type, Set
+try:
+    from typing_extensions import TypedDict
+except ImportError:
+    from typing import TypedDict
 from dataclasses import dataclass
 import logging
 
@@ -18,6 +22,27 @@ from .strategies import StrategyFactory, AudienceStrategy
 
 # Set up logging
 logger = logging.getLogger('meq_bench.evaluator')
+
+
+# TypedDict definitions for better structure typing
+class APIConfigDict(TypedDict):
+    """Type definition for API configuration."""
+    base_url: str
+    timeout: Optional[int]
+
+
+class EvaluationConfigDict(TypedDict):
+    """Type definition for evaluation configuration."""
+    safety: Dict[str, List[str]]
+    medical_terms: List[str]
+    readability_targets: Dict[str, Dict[str, float]]
+    terminology_density: Dict[str, Dict[str, float]]
+
+
+class ScoringConfigDict(TypedDict):
+    """Type definition for scoring configuration."""
+    weights: Dict[str, float]
+    parameters: Dict[str, Any]
 
 try:
     import textstat
@@ -69,8 +94,8 @@ class MetricCalculator(Protocol):
 class ReadabilityCalculator:
     """Calculator for readability metrics using dependency injection"""
     
-    def __init__(self, strategy_factory: StrategyFactory):
-        self.strategy_factory = strategy_factory
+    def __init__(self, strategy_factory: StrategyFactory) -> None:
+        self.strategy_factory: StrategyFactory = strategy_factory
         logger.debug("Initialized ReadabilityCalculator")
     
     def calculate(self, text: str, audience: str, **kwargs) -> float:
@@ -115,9 +140,9 @@ class ReadabilityCalculator:
 class TerminologyCalculator:
     """Calculator for medical terminology appropriateness"""
     
-    def __init__(self, strategy_factory: StrategyFactory):
-        self.strategy_factory = strategy_factory
-        self.medical_terms = set(config.get('evaluation.medical_terms', []))
+    def __init__(self, strategy_factory: StrategyFactory) -> None:
+        self.strategy_factory: StrategyFactory = strategy_factory
+        self.medical_terms: Set[str] = set(config.get('evaluation.medical_terms', []))
         logger.debug(f"Initialized TerminologyCalculator with {len(self.medical_terms)} medical terms")
     
     def calculate(self, text: str, audience: str, **kwargs) -> float:
@@ -160,10 +185,10 @@ class TerminologyCalculator:
 class SafetyChecker:
     """Medical safety and factual consistency checker"""
     
-    def __init__(self):
-        eval_config = config.get_evaluation_config()
-        self.danger_words = eval_config['safety']['danger_words']
-        self.safety_words = eval_config['safety']['safety_words']
+    def __init__(self) -> None:
+        eval_config = config.get_evaluation_config()  # type: ignore[misc]
+        self.danger_words: List[str] = eval_config['safety']['danger_words']
+        self.safety_words: List[str] = eval_config['safety']['safety_words']
         logger.debug(f"Initialized SafetyChecker with {len(self.danger_words)} danger words")
     
     def calculate(self, text: str, audience: str, **kwargs) -> float:
@@ -214,9 +239,9 @@ class SafetyChecker:
 class CoverageAnalyzer:
     """Analyzer for information coverage and completeness"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         try:
-            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+            self.sentence_model: Optional[Any] = SentenceTransformer('all-MiniLM-L6-v2')
             logger.debug("Initialized CoverageAnalyzer with SentenceTransformer")
         except Exception as e:
             logger.warning(f"Failed to load SentenceTransformer: {e}")
@@ -284,16 +309,16 @@ class CoverageAnalyzer:
 class LLMJudge:
     """LLM-as-a-judge evaluator with full API integration"""
     
-    def __init__(self, model: str = None):
-        self.model = model or config.get('llm_judge.default_model')
-        self.timeout = config.get('llm_judge.timeout', 30)
-        self.max_retries = config.get('llm_judge.max_retries', 3)
-        self.temperature = config.get('llm_judge.temperature', 0.1)
-        self.max_tokens = config.get('llm_judge.max_tokens', 1000)
+    def __init__(self, model: Optional[str] = None) -> None:
+        self.model: str = model or config.get('llm_judge.default_model')
+        self.timeout: int = config.get('llm_judge.timeout', 30)
+        self.max_retries: int = config.get('llm_judge.max_retries', 3)
+        self.temperature: float = config.get('llm_judge.temperature', 0.1)
+        self.max_tokens: int = config.get('llm_judge.max_tokens', 1000)
         
         # Determine API provider from model name
-        self.provider = self._determine_provider(self.model)
-        self.api_key = config.get_api_key(self.provider)
+        self.provider: str = self._determine_provider(self.model)
+        self.api_key: str = config.get_api_key(self.provider)
         
         logger.info(f"Initialized LLMJudge with model: {self.model} (provider: {self.provider})")
     
@@ -336,6 +361,10 @@ class LLMJudge:
                     if attempt == self.max_retries - 1:
                         raise
                     time.sleep(2 ** attempt)  # Exponential backoff
+            
+            # If we reach here, all retries failed but no exception was raised
+            logger.error("All LLM API retry attempts failed")
+            return 0.6
             
         except Exception as e:
             logger.error(f"LLM Judge evaluation failed: {e}")
@@ -468,12 +497,12 @@ class MEQBenchEvaluator:
     """Main evaluation class using dependency injection and SOLID principles"""
     
     def __init__(self,
-                 readability_calculator: ReadabilityCalculator = None,
-                 terminology_calculator: TerminologyCalculator = None,
-                 safety_checker: SafetyChecker = None,
-                 coverage_analyzer: CoverageAnalyzer = None,
-                 llm_judge: LLMJudge = None,
-                 strategy_factory: StrategyFactory = None):
+                 readability_calculator: Optional[ReadabilityCalculator] = None,
+                 terminology_calculator: Optional[TerminologyCalculator] = None,
+                 safety_checker: Optional[SafetyChecker] = None,
+                 coverage_analyzer: Optional[CoverageAnalyzer] = None,
+                 llm_judge: Optional[LLMJudge] = None,
+                 strategy_factory: Optional[StrategyFactory] = None) -> None:
         """
         Initialize evaluator with dependency injection
         
@@ -486,17 +515,17 @@ class MEQBenchEvaluator:
             strategy_factory: Factory for audience strategies
         """
         # Use dependency injection with sensible defaults
-        self.strategy_factory = strategy_factory or StrategyFactory()
+        self.strategy_factory: StrategyFactory = strategy_factory or StrategyFactory()
         
-        self.readability_calculator = readability_calculator or ReadabilityCalculator(self.strategy_factory)
-        self.terminology_calculator = terminology_calculator or TerminologyCalculator(self.strategy_factory)
-        self.safety_checker = safety_checker or SafetyChecker()
-        self.coverage_analyzer = coverage_analyzer or CoverageAnalyzer()
-        self.llm_judge = llm_judge or LLMJudge()
+        self.readability_calculator: ReadabilityCalculator = readability_calculator or ReadabilityCalculator(self.strategy_factory)
+        self.terminology_calculator: TerminologyCalculator = terminology_calculator or TerminologyCalculator(self.strategy_factory)
+        self.safety_checker: SafetyChecker = safety_checker or SafetyChecker()
+        self.coverage_analyzer: CoverageAnalyzer = coverage_analyzer or CoverageAnalyzer()
+        self.llm_judge: LLMJudge = llm_judge or LLMJudge()
         
         # Load scoring configuration
-        self.scoring_config = config.get_scoring_config()
-        self.weights = self.scoring_config['weights']
+        self.scoring_config = config.get_scoring_config()  # type: ignore[misc]
+        self.weights: Dict[str, float] = self.scoring_config['weights']
         
         logger.info("MEQBenchEvaluator initialized with dependency injection")
     

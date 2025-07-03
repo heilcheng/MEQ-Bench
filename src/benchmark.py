@@ -12,7 +12,11 @@ Key classes:
 import json
 import os
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Callable
+try:
+    from typing_extensions import TypedDict
+except ImportError:
+    from typing import TypedDict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,6 +25,33 @@ from .prompt_templates import AudienceAdaptivePrompt
 from .evaluator import MEQBenchEvaluator, EvaluationScore
 
 logger = logging.getLogger('meq_bench.benchmark')
+
+
+# TypedDict definitions for structured data
+class EvaluationResultDict(TypedDict):
+    """Type definition for evaluation results."""
+    model_name: str
+    total_items: int
+    audience_scores: Dict[str, List[float]]
+    complexity_scores: Dict[str, List[float]]
+    detailed_results: List[Dict[str, Any]]
+    summary: Dict[str, float]
+
+
+class ItemResultDict(TypedDict):
+    """Type definition for individual item results."""
+    item_id: str
+    complexity_level: str
+    source_dataset: str
+    explanations: Dict[str, str]
+    scores: Dict[str, Dict[str, float]]
+
+
+class BenchmarkStatsDict(TypedDict):
+    """Type definition for benchmark statistics."""
+    total_items: int
+    complexity_distribution: Dict[str, int]
+    source_distribution: Dict[str, int]
 
 
 @dataclass
@@ -75,7 +106,7 @@ class MEQBench:
         ```
     """
     
-    def __init__(self, data_path: Optional[str] = None):
+    def __init__(self, data_path: Optional[str] = None) -> None:
         """Initialize MEQ-Bench instance.
         
         Sets up the benchmark with the specified data directory and initializes
@@ -89,11 +120,11 @@ class MEQBench:
         self.data_path = self._resolve_data_path(data_path)
         # Initialize evaluator with graceful fallback for missing dependencies
         try:
-            self.evaluator = MEQBenchEvaluator()
+            self.evaluator: MEQBenchEvaluator = MEQBenchEvaluator()
         except Exception as e:
             logger.warning(f"Could not initialize full evaluator: {e}")
             logger.info("Some evaluation features may be limited due to missing dependencies or configuration")
-        self.prompt_template = AudienceAdaptivePrompt()
+        self.prompt_template: AudienceAdaptivePrompt = AudienceAdaptivePrompt()
         self.benchmark_items: List[MEQBenchItem] = []
         
         # Load benchmark data if available
@@ -140,7 +171,7 @@ class MEQBench:
         logger.info(f"Using data directory: {resolved_path}")
         return resolved_path
     
-    def _load_benchmark_data(self):
+    def _load_benchmark_data(self) -> None:
         """Load benchmark data from JSON files with error handling.
         
         Loads benchmark items from benchmark_items.json in the data directory.
@@ -198,7 +229,7 @@ class MEQBench:
         except Exception as e:
             logger.error(f"Unexpected error loading benchmark data: {e}")
     
-    def add_benchmark_item(self, item: MEQBenchItem):
+    def add_benchmark_item(self, item: MEQBenchItem) -> None:
         """Add a new benchmark item to the evaluation set.
         
         Validates the item data and adds it to the benchmark items list.
@@ -231,7 +262,7 @@ class MEQBench:
         self.benchmark_items.append(item)
         logger.debug(f"Added benchmark item: {item.id}")
     
-    def generate_explanations(self, medical_content: str, model_func: callable) -> Dict[str, str]:
+    def generate_explanations(self, medical_content: str, model_func: Callable[[str], str]) -> Dict[str, str]:
         """Generate audience-adaptive explanations using a model.
         
         Uses the configured prompt template to generate explanations tailored
@@ -315,7 +346,7 @@ class MEQBench:
             else:
                 raise RuntimeError(f"Unexpected error during explanation generation: {e}") from e
     
-    def evaluate_model(self, model_func: callable, max_items: Optional[int] = None) -> Dict[str, Any]:
+    def evaluate_model(self, model_func: Callable[[str], str], max_items: Optional[int] = None) -> EvaluationResultDict:
         """Evaluate a model on the full benchmark.
         
         Runs comprehensive evaluation of a model's performance across all benchmark
@@ -343,7 +374,7 @@ class MEQBench:
             print(f"Overall mean score: {results['summary']['overall_mean']}")
             ```
         """
-        results = {
+        results: EvaluationResultDict = {
             'model_name': getattr(model_func, '__name__', 'unknown'),
             'total_items': len(self.benchmark_items[:max_items]) if max_items else len(self.benchmark_items),
             'audience_scores': {
@@ -453,7 +484,7 @@ class MEQBench:
         
         return summary
     
-    def save_results(self, results: Dict[str, Any], output_path: str):
+    def save_results(self, results: Dict[str, Any], output_path: str) -> None:
         """Save evaluation results to JSON file.
         
         Serializes the evaluation results dictionary to a JSON file with
@@ -555,7 +586,7 @@ class MEQBench:
         
         return sample_items
     
-    def get_benchmark_stats(self) -> Dict[str, Any]:
+    def get_benchmark_stats(self) -> Union[BenchmarkStatsDict, Dict[str, Union[int, str]]]:
         """Get statistics about the benchmark dataset.
         
         Provides summary statistics about the loaded benchmark items,
@@ -579,7 +610,7 @@ class MEQBench:
         if not self.benchmark_items:
             return {'total_items': 0, 'message': 'No benchmark items loaded'}
         
-        stats = {
+        stats: BenchmarkStatsDict = {
             'total_items': len(self.benchmark_items),
             'complexity_distribution': {},
             'source_distribution': {}

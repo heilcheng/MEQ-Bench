@@ -25,7 +25,7 @@ Example:
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Type
 import logging
 
 from .config import config
@@ -51,14 +51,14 @@ class AudienceStrategy(ABC):
         get_expected_explanation_length: Get expected explanation length range.
     """
     
-    def __init__(self, audience: str):
+    def __init__(self, audience: str) -> None:
         """Initialize audience strategy.
         
         Args:
             audience: Target audience name (e.g., 'physician', 'nurse', 'patient', 'caregiver').
         """
-        self.audience = audience
-        self.eval_config = config.get_evaluation_config()
+        self.audience: str = audience
+        self.eval_config: Dict[str, Any] = config.get_evaluation_config()
         
     @abstractmethod
     def calculate_readability_score(self, text: str, grade_level: float) -> float:
@@ -130,7 +130,7 @@ class PhysicianStrategy(AudienceStrategy):
         - Length: Accommodates longer, detailed explanations
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('physician')
     
     def calculate_readability_score(self, text: str, grade_level: float) -> float:
@@ -217,7 +217,7 @@ class NurseStrategy(AudienceStrategy):
         - Length: Practical, actionable explanations
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('nurse')
     
     def calculate_readability_score(self, text: str, grade_level: float) -> float:
@@ -296,7 +296,7 @@ class PatientStrategy(AudienceStrategy):
         - Length: Concise, clear explanations
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('patient')
     
     def calculate_readability_score(self, text: str, grade_level: float) -> float:
@@ -379,7 +379,7 @@ class CaregiverStrategy(AudienceStrategy):
         - Length: Practical, step-by-step guidance
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('caregiver')
     
     def calculate_readability_score(self, text: str, grade_level: float) -> float:
@@ -457,7 +457,7 @@ class StrategyFactory:
         _strategies: Dictionary mapping audience names to strategy classes.
     """
     
-    _strategies = {
+    _strategies: Dict[str, Type[AudienceStrategy]] = {
         'physician': PhysicianStrategy,
         'nurse': NurseStrategy,
         'patient': PatientStrategy,
@@ -492,7 +492,7 @@ class StrategyFactory:
             raise ValueError(f"Unsupported audience: {audience}. Supported: {supported}")
         
         strategy_class = cls._strategies[audience]
-        return strategy_class()
+        return strategy_class()  # type: ignore[misc]
     
     @classmethod
     def get_supported_audiences(cls) -> List[str]:
