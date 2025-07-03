@@ -3,7 +3,8 @@
 
 This script provides a command-line interface for running comprehensive MEQ-Bench
 evaluations on different language models. It supports various model backends
-including Hugging Face models, OpenAI API, Anthropic API, and custom model functions.
+including Hugging Face models, OpenAI API, Anthropic API, MLX (Apple Silicon), 
+and custom model functions.
 
 The script handles model loading, benchmark execution, results saving, and provides
 detailed progress reporting for long-running evaluations.
@@ -109,10 +110,14 @@ def create_model_function(model_name: str) -> Callable[[str], str]:
         logger.info(f"Creating Anthropic model: {model_id}")
         return _create_anthropic_model(model_id)
         
+    elif backend == "mlx":
+        logger.info(f"Creating MLX model: {model_id}")
+        return _create_mlx_model(model_id)
+        
     else:
         raise ValueError(
             f"Unknown model backend: {backend}. "
-            f"Supported backends: dummy, huggingface, openai, anthropic"
+            f"Supported backends: dummy, huggingface, openai, anthropic, mlx"
         )
 
 
@@ -180,41 +185,64 @@ def _create_huggingface_model(model_id: str) -> Callable[[str], str]:
         raise
     
     def huggingface_model(prompt: str) -> str:
-        """Generate response using Hugging Face model."""
-        try:
-            # Format prompt for instruction-tuned models
-            if "instruct" in model_id.lower() or "chat" in model_id.lower():
-                formatted_prompt = f"<s>[INST] {prompt} [/INST]"
-            else:
-                formatted_prompt = prompt
-            
-            # Generation parameters
-            result = generator(
-                formatted_prompt,
-                max_new_tokens=800,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=tokenizer.eos_token_id,
-                eos_token_id=tokenizer.eos_token_id,
-            )
-            
-            # Extract generated text
-            if isinstance(result, list) and len(result) > 0:
-                generated_text = result[0].get('generated_text', '')
-            else:
-                generated_text = str(result)
-            
-            # Clean up response
-            generated_text = generated_text.strip()
-            if generated_text.startswith('[/INST]'):
-                generated_text = generated_text[7:].strip()
-            
-            return generated_text
-            
-        except Exception as e:
-            logger.error(f"Error generating with Hugging Face model: {e}")
-            return "Error: Model generation failed"
+        """Generate response using Hugging Face model with retry mechanism."""
+        max_retries = 3
+        base_delay = 1.0  # Base delay in seconds
+        
+        for attempt in range(max_retries):
+            try:
+                logger.debug(f"Hugging Face generation attempt {attempt + 1}/{max_retries}")
+                
+                # Format prompt for instruction-tuned models
+                if "instruct" in model_id.lower() or "chat" in model_id.lower():
+                    formatted_prompt = f"<s>[INST] {prompt} [/INST]"
+                else:
+                    formatted_prompt = prompt
+                
+                logger.debug(f"Formatted prompt length: {len(formatted_prompt)} characters")
+                
+                # Generation parameters
+                result = generator(
+                    formatted_prompt,
+                    max_new_tokens=800,
+                    temperature=0.7,
+                    top_p=0.9,
+                    do_sample=True,
+                    pad_token_id=tokenizer.eos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                )
+                
+                # Extract generated text
+                if isinstance(result, list) and len(result) > 0:
+                    generated_text = result[0].get('generated_text', '')
+                else:
+                    generated_text = str(result)
+                
+                # Clean up response
+                generated_text = generated_text.strip()
+                if generated_text.startswith('[/INST]'):
+                    generated_text = generated_text[7:].strip()
+                
+                logger.debug(f"Successfully generated {len(generated_text)} characters on attempt {attempt + 1}")
+                return generated_text
+                
+            except Exception as e:
+                logger.warning(f"Hugging Face generation attempt {attempt + 1} failed: {e}")
+                
+                # If this is the last attempt, log error and return fallback
+                if attempt == max_retries - 1:
+                    logger.error(f"All {max_retries} Hugging Face generation attempts failed. Final error: {e}")
+                    return "Error: Model generation failed after multiple retries"
+                
+                # Calculate exponential backoff delay
+                delay = base_delay * (2 ** attempt)
+                logger.info(f"Retrying in {delay:.1f} seconds... (attempt {attempt + 2}/{max_retries})")
+                
+                # Sleep with exponential backoff
+                time.sleep(delay)
+        
+        # This should never be reached due to the logic above, but included for safety
+        return "Error: Unexpected failure in retry mechanism"
     
     return huggingface_model
 
@@ -302,6 +330,125 @@ def _create_anthropic_model(model_id: str) -> Callable[[str], str]:
             return "Error: Anthropic API call failed"
     
     return anthropic_model
+
+
+def _create_mlx_model(model_id: str) -> Callable[[str], str]:
+    """Create an MLX model function for optimized inference on Apple Silicon.
+    
+    MLX is Apple's machine learning framework optimized for Apple Silicon chips,
+    providing efficient inference for large language models on M-series processors.
+    
+    Args:
+        model_id: HuggingFace model identifier that will be loaded via MLX.
+            Examples: "mistralai/Mistral-7B-Instruct-v0.2", "microsoft/phi-2"
+            
+    Returns:
+        Callable function that takes a prompt and returns model response.
+        
+    Raises:
+        ImportError: If mlx_lm library is not installed.
+        Exception: If model loading fails.
+        
+    Example:
+        ```python
+        model_func = _create_mlx_model("mistralai/Mistral-7B-Instruct-v0.2")
+        response = model_func("What are the symptoms of diabetes?")
+        ```
+    """
+    try:
+        import mlx_lm
+        from mlx_lm import load, generate
+    except ImportError as e:
+        raise ImportError(
+            "MLX models require 'mlx' and 'mlx-lm' libraries. "
+            "Install with: pip install mlx mlx-lm\n"
+            "Note: MLX is only available on Apple Silicon (M1/M2/M3) Macs."
+        ) from e
+    
+    # Check if we're running on Apple Silicon
+    import platform
+    if platform.processor() != 'arm' and 'arm64' not in platform.machine().lower():
+        logger.warning(
+            "MLX is optimized for Apple Silicon. "
+            "Consider using huggingface backend on non-Apple hardware."
+        )
+    
+    logger.info(f"Loading MLX model: {model_id}")
+    logger.info("MLX provides optimized inference on Apple Silicon...")
+    
+    try:
+        # Load model and tokenizer using MLX
+        model, tokenizer = load(model_id)
+        logger.info(f"Successfully loaded MLX model: {model_id}")
+        
+        # Log model information
+        try:
+            # Get approximate model size if available
+            logger.info("MLX model loaded successfully with Apple Silicon optimization")
+        except Exception:
+            pass  # Model info not critical
+            
+    except Exception as e:
+        logger.error(f"Failed to load MLX model {model_id}: {e}")
+        logger.error("Common issues:")
+        logger.error("1. Model not supported by MLX")
+        logger.error("2. Insufficient memory")
+        logger.error("3. MLX libraries not properly installed")
+        raise
+    
+    def mlx_model(prompt: str) -> str:
+        """Generate response using MLX-optimized model.
+        
+        Args:
+            prompt: Input prompt for the model.
+            
+        Returns:
+            Generated response text.
+        """
+        try:
+            # Format prompt for instruction-tuned models
+            if "instruct" in model_id.lower() or "chat" in model_id.lower():
+                formatted_prompt = f"<s>[INST] {prompt} [/INST]"
+            else:
+                formatted_prompt = prompt
+            
+            logger.debug(f"Generating with MLX model for prompt length: {len(formatted_prompt)}")
+            
+            # Generate response using MLX
+            response = generate(
+                model, 
+                tokenizer, 
+                prompt=formatted_prompt,
+                max_tokens=800,
+                temp=0.7,
+                verbose=False  # Reduce MLX output verbosity
+            )
+            
+            # MLX generate returns the full text including prompt
+            # Extract only the generated part
+            if response.startswith(formatted_prompt):
+                generated_text = response[len(formatted_prompt):].strip()
+            else:
+                generated_text = response.strip()
+            
+            # Ensure we have meaningful output
+            if not generated_text:
+                logger.warning("MLX model returned empty response, using fallback")
+                return "I apologize, but I was unable to generate a response. Please try rephrasing your question."
+            
+            logger.debug(f"MLX model generated {len(generated_text)} characters")
+            return generated_text
+            
+        except Exception as e:
+            logger.error(f"Error generating with MLX model: {e}")
+            # Return a helpful error message rather than failing
+            return (
+                "Error: MLX model generation failed. "
+                "This may be due to memory constraints or model compatibility issues. "
+                "Consider using a smaller model or the huggingface backend."
+            )
+    
+    return mlx_model
 
 
 def run_evaluation(
@@ -491,15 +638,22 @@ Examples:
   # Use custom data and configuration
   python run_benchmark.py --model_name anthropic:claude-3-opus --data_path data/custom.json --config config/custom.yaml
 
+  # Use MLX for optimized inference on Apple Silicon
+  python run_benchmark.py --model_name mlx:mistralai/Mistral-7B-Instruct-v0.2 --max_items 100
+
 Model Name Formats:
   dummy                                    - Dummy model for testing
   huggingface:model_id                    - Hugging Face model
   openai:model_id                         - OpenAI API model  
   anthropic:model_id                      - Anthropic API model
+  mlx:model_id                            - MLX optimized model (Apple Silicon only)
 
 Required Environment Variables:
   OPENAI_API_KEY      - For OpenAI models
   ANTHROPIC_API_KEY   - For Anthropic models
+
+Notes:
+  MLX backend requires Apple Silicon (M1/M2/M3) and mlx-lm package
         """
     )
     

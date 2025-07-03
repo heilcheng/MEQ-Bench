@@ -232,7 +232,8 @@ class Config:
         """
         env_var_map = {
             'openai': 'OPENAI_API_KEY',
-            'anthropic': 'ANTHROPIC_API_KEY'
+            'anthropic': 'ANTHROPIC_API_KEY',
+            'gemini': 'GEMINI_API_KEY'
         }
         
         env_var = env_var_map.get(provider.lower())

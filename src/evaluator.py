@@ -328,6 +328,8 @@ class LLMJudge:
             return 'openai'
         elif 'claude' in model.lower():
             return 'anthropic'
+        elif 'gemini' in model.lower():
+            return 'gemini'
         else:
             logger.warning(f"Unknown model provider for {model}, defaulting to openai")
             return 'openai'
@@ -398,6 +400,8 @@ Where each score is a number from 1-5, and overall is the average."""
             return self._call_openai_api(prompt)
         elif self.provider == 'anthropic':
             return self._call_anthropic_api(prompt)
+        elif self.provider == 'gemini':
+            return self._call_gemini_api(prompt)
         else:
             raise EvaluationError(f"Unsupported provider: {self.provider}")
     
@@ -447,6 +451,48 @@ Where each score is a number from 1-5, and overall is the average."""
         
         result = response.json()
         return result['content'][0]['text']
+    
+    def _call_gemini_api(self, prompt: str) -> str:
+        """Call Google Gemini API"""
+        api_config = config.get_api_config('gemini')
+        
+        # Extract model ID from full model name (e.g., "gemini-pro" from "gemini-pro")
+        model_id = self.model.replace('gemini-', '') if self.model.startswith('gemini-') else self.model
+        url = f"{api_config['base_url']}/models/{model_id}:generateContent"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': self.api_key
+        }
+        
+        data = {
+            'contents': [{
+                'parts': [{
+                    'text': prompt
+                }]
+            }],
+            'generationConfig': {
+                'temperature': self.temperature,
+                'maxOutputTokens': self.max_tokens,
+                'topP': 0.8,
+                'topK': 10
+            }
+        }
+        
+        response = requests.post(url, headers=headers, json=data, timeout=self.timeout)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Extract text from Gemini response format
+        if 'candidates' in result and len(result['candidates']) > 0:
+            candidate = result['candidates'][0]
+            if 'content' in candidate and 'parts' in candidate['content']:
+                parts = candidate['content']['parts']
+                if len(parts) > 0 and 'text' in parts[0]:
+                    return parts[0]['text']
+        
+        raise EvaluationError("Failed to extract text from Gemini API response")
     
     def _parse_llm_response(self, response: str) -> float:
         """Parse LLM response to extract score"""

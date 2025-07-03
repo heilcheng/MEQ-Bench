@@ -64,6 +64,57 @@ MEQ-Bench is built with SOLID principles and uses:
 * **Configuration-Driven** design with YAML configuration
 * **Comprehensive Logging** for debugging and monitoring
 
+Getting Help
+------------
+
+If you need assistance with MEQ-Bench, here are the best ways to get help:
+
+**Check Existing Resources**
+
+* **Documentation**: Start by reviewing this documentation for answers to common questions and detailed usage examples.
+* **GitHub Issues**: Search our `GitHub Issues page <https://github.com/heilcheng/MEQ-Bench/issues>`_ to see if your question has already been addressed.
+* **Examples**: Check the `examples/ <https://github.com/heilcheng/MEQ-Bench/tree/main/examples>`_ directory for practical usage patterns.
+
+**Report Issues**
+
+If you encounter a bug or have a feature request:
+
+1. **Search existing issues** first to avoid duplicates
+2. **Open a new issue** with:
+   
+   * Clear description of the problem or request
+   * Steps to reproduce (for bugs)
+   * Your environment details (OS, Python version, etc.)
+   * Relevant code snippets or error messages
+
+**Ask Questions**
+
+For general questions about usage, best practices, or research applications:
+
+* **GitHub Discussions**: Use our `GitHub Discussions <https://github.com/heilcheng/MEQ-Bench/discussions>`_ for community support
+* **Email Support**: For direct assistance, contact our development team at: contact@meq-bench.org
+
+**Contribute**
+
+We welcome contributions! See our `Contributing Guidelines <https://github.com/heilcheng/MEQ-Bench/blob/main/CONTRIBUTING.md>`_ for:
+
+* Development setup instructions
+* Coding standards and best practices
+* Pull request process
+* How to add new features or datasets
+
+**Community Guidelines**
+
+When seeking help:
+
+* Be respectful and professional
+* Provide sufficient context and details
+* Include code examples when relevant
+* Follow up if issues are resolved
+* Help others when you can
+
+For urgent issues related to medical AI safety or security concerns, please email us directly at contact@meq-bench.org with "URGENT" in the subject line.
+
 Citation
 --------
 

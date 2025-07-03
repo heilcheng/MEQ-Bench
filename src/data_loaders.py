@@ -2,21 +2,26 @@
 
 This module provides data loading functionality for integrating external medical
 datasets into the MEQ-Bench framework. It includes loaders for popular datasets
-like MedQuAD and provides standardized conversion to MEQBenchItem objects.
+like MedQuAD, HealthSearchQA, and provides standardized conversion to MEQBenchItem objects.
 
 The module ensures consistent data formatting and validation across different
 dataset sources, making it easy to extend MEQ-Bench with new data sources.
 
+Supported Datasets:
+    - MedQuAD: Medical Question Answering Dataset
+    - HealthSearchQA: Health Search Question Answering Dataset
+
 Example:
     ```python
-    from data_loaders import load_medquad
+    from data_loaders import load_medquad, load_healthsearchqa
     
-    # Load MedQuAD dataset
-    items = load_medquad('path/to/medquad.json')
+    # Load different datasets
+    medquad_items = load_medquad('path/to/medquad.json')
+    healthsearch_items = load_healthsearchqa('path/to/healthsearchqa.json')
     
     # Add to benchmark
     bench = MEQBench()
-    for item in items:
+    for item in medquad_items + healthsearch_items:
         bench.add_benchmark_item(item)
     ```
 """
@@ -367,3 +372,143 @@ def save_benchmark_items(
     except Exception as e:
         logger.error(f"Failed to save benchmark items to {output_file}: {e}")
         raise
+
+
+def load_healthsearchqa(
+    data_path: Union[str, Path], 
+    max_items: Optional[int] = None,
+    complexity_level: str = 'intermediate'
+) -> List[MEQBenchItem]:
+    """Load HealthSearchQA dataset and convert to MEQBenchItem objects.
+    
+    The HealthSearchQA dataset contains health-related search queries and answers
+    from reputable medical sources. This function loads the dataset and converts
+    it to the MEQ-Bench format for evaluation.
+    
+    Expected JSON format:
+    [
+        {
+            "id": "healthsearchqa_1",
+            "question": "What are the symptoms of a heart attack?",
+            "answer": "Symptoms of a heart attack can include chest pain...",
+            "source": "reputable medical source"
+        }
+    ]
+    
+    Args:
+        data_path: Path to the HealthSearchQA JSON file. Can be a string or Path object.
+        max_items: Maximum number of items to load. If None, loads all items.
+        complexity_level: Complexity level to assign to all items. Defaults to 'intermediate'
+            since HealthSearchQA contains moderately complex health information.
+            
+    Returns:
+        List of MEQBenchItem objects converted from HealthSearchQA data.
+        
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+        json.JSONDecodeError: If the JSON file is malformed.
+        ValueError: If the data format is invalid.
+        
+    Example:
+        ```python
+        # Load HealthSearchQA dataset
+        items = load_healthsearchqa('data/healthsearchqa.json', max_items=100)
+        
+        # Add to benchmark
+        bench = MEQBench()
+        for item in items:
+            bench.add_benchmark_item(item)
+        ```
+    """
+    data_file = Path(data_path)
+    
+    if not data_file.exists():
+        raise FileNotFoundError(f"HealthSearchQA file not found: {data_file}")
+    
+    logger.info(f"Loading HealthSearchQA dataset from: {data_file}")
+    
+    try:
+        with open(data_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(
+            f"Invalid JSON in HealthSearchQA file: {e}",
+            e.doc, e.pos
+        )
+    
+    if not isinstance(data, list):
+        raise ValueError("HealthSearchQA data must be a list of items")
+    
+    # Validate complexity level
+    if complexity_level not in ['basic', 'intermediate', 'advanced']:
+        logger.warning(f"Invalid complexity level '{complexity_level}', using 'intermediate'")
+        complexity_level = 'intermediate'
+    
+    items = []
+    items_to_process = data[:max_items] if max_items else data
+    
+    logger.info(f"Processing {len(items_to_process)} HealthSearchQA items")
+    
+    for i, item_data in enumerate(items_to_process):
+        try:
+            if not isinstance(item_data, dict):
+                logger.warning(f"Skipping invalid HealthSearchQA item {i}: not a dictionary")
+                continue
+            
+            # Extract required fields
+            item_id = item_data.get('id')
+            question = item_data.get('question', '')
+            answer = item_data.get('answer', '')
+            source = item_data.get('source', 'HealthSearchQA')
+            
+            # Validate required fields
+            if not item_id:
+                logger.warning(f"Skipping HealthSearchQA item {i}: missing 'id' field")
+                continue
+                
+            if not question.strip():
+                logger.warning(f"Skipping HealthSearchQA item {i}: empty 'question' field")
+                continue
+                
+            if not answer.strip():
+                logger.warning(f"Skipping HealthSearchQA item {i}: empty 'answer' field")
+                continue
+            
+            # Combine question and answer to create medical content
+            # This provides context for explanation generation
+            medical_content = f"Question: {question.strip()}\n\nAnswer: {answer.strip()}"
+            
+            if source and source != 'HealthSearchQA':
+                medical_content += f"\n\nSource: {source}"
+            
+            # Create MEQBenchItem
+            item = MEQBenchItem(
+                id=str(item_id),
+                medical_content=medical_content,
+                complexity_level=complexity_level,
+                source_dataset='HealthSearchQA',
+                reference_explanations=None  # No reference explanations in HealthSearchQA
+            )
+            
+            # Validate the created item
+            _validate_benchmark_item(item)
+            
+            items.append(item)
+            
+        except Exception as e:
+            logger.error(f"Error processing HealthSearchQA item {i}: {e}")
+            continue
+    
+    logger.info(f"Successfully loaded {len(items)} MEQBenchItem objects from HealthSearchQA")
+    
+    if len(items) == 0:
+        logger.warning("No valid items were loaded from HealthSearchQA dataset")
+    else:
+        # Log some statistics
+        avg_length = sum(len(item.medical_content) for item in items) / len(items)
+        logger.info(f"HealthSearchQA dataset statistics:")
+        logger.info(f"  - Total items: {len(items)}")
+        logger.info(f"  - Average content length: {avg_length:.1f} characters")
+        logger.info(f"  - Complexity level: {complexity_level}")
+    
+    return items
