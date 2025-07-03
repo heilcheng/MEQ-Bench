@@ -1,5 +1,15 @@
-"""
-Configuration management for MEQ-Bench
+"""Configuration management system for MEQ-Bench.
+
+This module provides a centralized configuration management system that loads settings
+from YAML files and environment variables. It implements a singleton pattern to ensure
+consistent configuration access across the application.
+
+The configuration system supports:
+    - YAML-based configuration files
+    - Environment variable overrides for sensitive data (API keys)
+    - Validation of required configuration sections
+    - Logging setup and management
+    - Multiple configuration environments
 """
 
 import yaml
@@ -10,12 +20,43 @@ from typing import Dict, Any, List, Optional
 
 
 class ConfigurationError(Exception):
-    """Raised when there's an error in configuration"""
+    """Raised when there's an error in configuration.
+    
+    This exception is raised when:
+        - Configuration files are missing or invalid
+        - Required configuration sections are missing
+        - YAML parsing fails
+        - Required environment variables are not set
+    """
     pass
 
 
 class Config:
-    """Configuration manager for MEQ-Bench"""
+    """Singleton configuration manager for MEQ-Bench.
+    
+    This class manages all configuration settings for the MEQ-Bench application.
+    It loads configuration from YAML files and provides methods to access 
+    configuration values using dot notation.
+    
+    The class implements the singleton pattern to ensure that configuration
+    is loaded once and shared across the entire application.
+    
+    Attributes:
+        _instance: Singleton instance of the Config class.
+        _config: Dictionary containing the loaded configuration data.
+    
+    Example:
+        ```python
+        from config import config
+        
+        # Get configuration values
+        model_name = config.get('llm_judge.default_model')
+        audiences = config.get_audiences()
+        
+        # Set up logging
+        config.setup_logging()
+        ```
+    """
     
     _instance = None
     _config = None
@@ -30,11 +71,17 @@ class Config:
             self.load_config()
     
     def load_config(self, config_path: Optional[str] = None) -> None:
-        """
-        Load configuration from YAML file
+        """Load configuration from YAML file.
+        
+        Loads configuration settings from a YAML file and validates required sections.
+        If no path is provided, looks for config.yaml in the project root directory.
         
         Args:
-            config_path: Path to configuration file. If None, uses default.
+            config_path: Path to configuration file. If None, uses default config.yaml
+                in the project root directory.
+                
+        Raises:
+            ConfigurationError: If configuration file is not found or contains invalid YAML.
         """
         if config_path is None:
             # Look for config.yaml in the project root
@@ -65,15 +112,22 @@ class Config:
                 raise ConfigurationError(f"Missing required configuration section: {section}")
     
     def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get configuration value using dot notation
+        """Get configuration value using dot notation.
+        
+        Retrieves configuration values using a dot-separated key path. For example,
+        'llm_judge.default_model' would access config['llm_judge']['default_model'].
         
         Args:
-            key: Configuration key (e.g., 'app.name', 'llm_judge.default_model')
-            default: Default value if key not found
+            key: Configuration key using dot notation (e.g., 'app.name', 
+                'llm_judge.default_model').
+            default: Default value to return if key is not found.
             
         Returns:
-            Configuration value
+            The configuration value at the specified key path, or the default value
+            if the key is not found.
+            
+        Raises:
+            ConfigurationError: If key is not found and no default value is provided.
         """
         keys = key.split('.')
         value = self._config
