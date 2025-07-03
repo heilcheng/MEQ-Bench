@@ -102,9 +102,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-cov pytest-mock
-        # Install core dependencies without optional ML packages for CI
-        pip install PyYAML requests numpy pandas textstat
+        pip install .[dev]
     
     - name: Create logs directory
       run: mkdir -p logs
@@ -141,7 +139,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install mypy PyYAML requests numpy pandas textstat types-PyYAML types-requests
+        pip install .[dev]
+        pip install types-PyYAML types-requests
     
     - name: Run mypy type checking
       run: |
@@ -186,8 +185,7 @@ jobs:
     - name: Install documentation dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install sphinx sphinx-rtd-theme myst-parser sphinx-autodoc-typehints
-        pip install PyYAML requests numpy pandas textstat
+        pip install .[docs]
     
     - name: Build documentation
       run: |
@@ -217,7 +215,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install PyYAML requests numpy pandas textstat pytest
+        pip install .[dev]
     
     - name: Create logs directory
       run: mkdir -p logs
