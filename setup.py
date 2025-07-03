@@ -7,8 +7,14 @@ from setuptools import setup, find_packages
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+# Core production dependencies
+requirements = [
+    "numpy>=1.21.0",
+    "pandas>=1.5.0", 
+    "PyYAML>=6.0.0",
+    "requests>=2.28.0",
+    "textstat>=0.7.0",
+]
 
 setup(
     name="meq-bench",
@@ -38,14 +44,58 @@ setup(
     extras_require={
         "dev": [
             "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "pytest-mock>=3.10.0",
             "black>=23.0.0",
             "flake8>=6.0.0",
             "mypy>=1.0.0",
+            "isort>=5.12.0",
+            "bandit>=1.7.0",
+        ],
+        "ml": [
+            "torch>=2.0.0",
+            "transformers>=4.30.0",
+            "datasets>=2.10.0",
+            "scikit-learn>=1.3.0",
+            "sentence-transformers>=2.2.0",
+            "bert-score>=0.3.13",
+            "spacy>=3.6.0",
+            "scispacy>=0.5.0",
+            "nltk>=3.8.0",
+        ],
+        "llm": [
+            "openai>=1.0.0",
+            "anthropic>=0.3.0",
+        ],
+        "apple": [
+            "mlx>=0.5.0",
+            "mlx-lm>=0.5.0",
+        ],
+        "docs": [
+            "sphinx>=5.0.0",
+            "sphinx-rtd-theme>=1.2.0",
+            "myst-parser>=0.18.0",
+            "sphinx-autodoc-typehints>=1.19.0",
+            "sphinx-autobuild>=2021.3.14",
         ],
         "full": [
+            "torch>=2.0.0",
+            "transformers>=4.30.0",
+            "datasets>=2.10.0",
+            "scikit-learn>=1.3.0",
+            "sentence-transformers>=2.2.0",
+            "bert-score>=0.3.13",
+            "spacy>=3.6.0",
+            "scispacy>=0.5.0",
+            "nltk>=3.8.0",
+            "openai>=1.0.0",
+            "anthropic>=0.3.0",
+            "mlx>=0.5.0",
+            "mlx-lm>=0.5.0",
             "jupyter>=1.0.0",
             "matplotlib>=3.5.0",
             "seaborn>=0.11.0",
+            "tqdm>=4.65.0",
         ],
     },
     entry_points={
