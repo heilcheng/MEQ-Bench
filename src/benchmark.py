@@ -1,5 +1,12 @@
-"""
-Main MEQ-Bench benchmark implementation
+"""Main MEQ-Bench benchmark implementation.
+
+This module contains the core benchmark classes and functionality for MEQ-Bench.
+It provides tools for loading medical datasets, generating audience-adaptive 
+explanations, and running comprehensive evaluations.
+
+Key classes:
+    MEQBenchItem: Represents a single benchmark item with medical content
+    MEQBench: Main benchmark class for running evaluations
 """
 
 import json
@@ -18,7 +25,20 @@ logger = logging.getLogger('meq_bench.benchmark')
 
 @dataclass
 class MEQBenchItem:
-    """Single benchmark item"""
+    """Represents a single benchmark item for evaluation.
+    
+    A benchmark item contains medical content to be explained, along with metadata
+    about its complexity level and source dataset. Optionally includes reference
+    explanations for different audiences.
+    
+    Attributes:
+        id: Unique identifier for the benchmark item.
+        medical_content: The medical information to be adapted for different audiences.
+        complexity_level: Difficulty level of the content ("basic", "intermediate", "advanced").
+        source_dataset: Name of the dataset this item was sourced from.
+        reference_explanations: Optional reference explanations for each audience,
+            mapping audience names to explanation text.
+    """
     id: str
     medical_content: str
     complexity_level: str  # "basic", "intermediate", "advanced"
@@ -27,14 +47,44 @@ class MEQBenchItem:
 
 
 class MEQBench:
-    """Main benchmark class for MEQ-Bench"""
+    """Main benchmark class for MEQ-Bench evaluation.
+    
+    This class provides the core functionality for running MEQ-Bench evaluations,
+    including loading benchmark data, generating audience-adaptive explanations,
+    and evaluating model performance across different audiences and complexity levels.
+    
+    The class manages benchmark items, interfaces with evaluation components,
+    and provides comprehensive evaluation results with detailed statistics.
+    
+    Attributes:
+        data_path: Path to the benchmark data directory.
+        evaluator: MEQBenchEvaluator instance for scoring explanations.
+        prompt_template: AudienceAdaptivePrompt instance for generating prompts.
+        benchmark_items: List of loaded MEQBenchItem objects.
+        
+    Example:
+        ```python
+        # Initialize benchmark
+        bench = MEQBench(data_path="/path/to/data")
+        
+        # Generate explanations for a model
+        explanations = bench.generate_explanations(medical_content, model_func)
+        
+        # Run full evaluation
+        results = bench.evaluate_model(model_func, max_items=100)
+        ```
+    """
     
     def __init__(self, data_path: Optional[str] = None):
-        """
-        Initialize MEQ-Bench
+        """Initialize MEQ-Bench instance.
+        
+        Sets up the benchmark with the specified data directory and initializes
+        the evaluator and prompt template components. Automatically loads benchmark
+        data if the data directory exists.
         
         Args:
-            data_path: Path to benchmark data directory
+            data_path: Path to benchmark data directory. If None, uses default
+                'data' directory relative to the package root.
         """
         self.data_path = self._resolve_data_path(data_path)
         # Initialize evaluator with graceful fallback for missing dependencies
@@ -91,7 +141,20 @@ class MEQBench:
         return resolved_path
     
     def _load_benchmark_data(self):
-        """Load benchmark data from JSON files with error handling."""
+        """Load benchmark data from JSON files with error handling.
+        
+        Loads benchmark items from benchmark_items.json in the data directory.
+        Each item is converted to a MEQBenchItem object and added to the
+        benchmark_items list. Includes comprehensive error handling for missing
+        files, invalid JSON, and malformed data.
+        
+        The JSON file should contain a list of dictionaries with the following keys:
+        - id: Unique identifier for the item
+        - medical_content: Medical information to be explained
+        - complexity_level: Difficulty level ("basic", "intermediate", "advanced")
+        - source_dataset: Name of the source dataset
+        - reference_explanations: Optional reference explanations dictionary
+        """
         try:
             benchmark_file = self.data_path / "benchmark_items.json"
             
@@ -136,7 +199,18 @@ class MEQBench:
             logger.error(f"Unexpected error loading benchmark data: {e}")
     
     def add_benchmark_item(self, item: MEQBenchItem):
-        """Add a new benchmark item with validation."""
+        """Add a new benchmark item to the evaluation set.
+        
+        Validates the item data and adds it to the benchmark items list.
+        Includes checks for data integrity and duplicate IDs.
+        
+        Args:
+            item: MEQBenchItem object to add to the benchmark.
+            
+        Raises:
+            TypeError: If item is not an instance of MEQBenchItem.
+            ValueError: If item data is invalid or ID already exists.
+        """
         if not isinstance(item, MEQBenchItem):
             raise TypeError("item must be an instance of MEQBenchItem")
         
@@ -158,19 +232,37 @@ class MEQBench:
         logger.debug(f"Added benchmark item: {item.id}")
     
     def generate_explanations(self, medical_content: str, model_func: callable) -> Dict[str, str]:
-        """
-        Generate audience-adaptive explanations using a model
+        """Generate audience-adaptive explanations using a model.
+        
+        Uses the configured prompt template to generate explanations tailored
+        for different healthcare audiences (physicians, nurses, patients, caregivers).
         
         Args:
-            medical_content: Medical information to adapt
-            model_func: Function that takes prompt and returns model response
-            
+            medical_content: Medical information to be adapted for different audiences.
+            model_func: Callable that takes a prompt string and returns the model's
+                response as a string.
+                
         Returns:
-            Dictionary mapping audience to explanation
+            Dictionary mapping audience names to their respective explanations.
+            Keys are audience names (e.g., 'physician', 'nurse', 'patient', 'caregiver').
             
         Raises:
             ValueError: If medical_content is empty or invalid
             TypeError: If model_func is not callable
+            
+        Example:
+            ```python
+            def my_model(prompt):
+                return openai_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}]
+                ).choices[0].message.content
+            
+            explanations = bench.generate_explanations(
+                "Hypertension is high blood pressure", 
+                my_model
+            )
+            ```
         """
         # Input validation
         if not medical_content or not isinstance(medical_content, str):
@@ -224,15 +316,32 @@ class MEQBench:
                 raise RuntimeError(f"Unexpected error during explanation generation: {e}") from e
     
     def evaluate_model(self, model_func: callable, max_items: Optional[int] = None) -> Dict[str, Any]:
-        """
-        Evaluate a model on the full benchmark
+        """Evaluate a model on the full benchmark.
+        
+        Runs comprehensive evaluation of a model's performance across all benchmark
+        items and audiences. Generates explanations for each item and evaluates them
+        using the configured evaluator.
         
         Args:
-            model_func: Function that takes prompt and returns model response
-            max_items: Maximum number of items to evaluate (for testing)
-            
+            model_func: Callable that takes a prompt string and returns the model's
+                response as a string.
+            max_items: Maximum number of benchmark items to evaluate. If None,
+                evaluates all available items. Useful for testing with smaller subsets.
+                
         Returns:
-            Dictionary containing evaluation results
+            Dictionary containing comprehensive evaluation results with the following keys:
+            - model_name: Name of the evaluated model
+            - total_items: Number of items evaluated
+            - audience_scores: Scores grouped by audience type
+            - complexity_scores: Scores grouped by complexity level
+            - detailed_results: Per-item detailed evaluation results
+            - summary: Summary statistics including means, standard deviations, etc.
+            
+        Example:
+            ```python
+            results = bench.evaluate_model(my_model_func, max_items=50)
+            print(f"Overall mean score: {results['summary']['overall_mean']}")
+            ```
         """
         results = {
             'model_name': getattr(model_func, '__name__', 'unknown'),
@@ -297,7 +406,26 @@ class MEQBench:
         return results
     
     def _calculate_summary_stats(self, results: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate summary statistics from evaluation results"""
+        """Calculate summary statistics from evaluation results.
+        
+        Computes descriptive statistics for audience-level and complexity-level
+        scores, including means, standard deviations, minimums, and maximums.
+        
+        Args:
+            results: Dictionary containing evaluation results with audience_scores
+                and complexity_scores keys.
+                
+        Returns:
+            Dictionary containing summary statistics with keys like:
+            - {audience}_mean: Mean score for each audience
+            - {audience}_std: Standard deviation for each audience
+            - {audience}_min: Minimum score for each audience
+            - {audience}_max: Maximum score for each audience
+            - {complexity}_mean: Mean score for each complexity level
+            - {complexity}_std: Standard deviation for each complexity level
+            - overall_mean: Overall mean score across all evaluations
+            - overall_std: Overall standard deviation
+        """
         summary = {}
         
         # Audience-level statistics
@@ -326,7 +454,25 @@ class MEQBench:
         return summary
     
     def save_results(self, results: Dict[str, Any], output_path: str):
-        """Save evaluation results to JSON file with proper path handling."""
+        """Save evaluation results to JSON file.
+        
+        Serializes the evaluation results dictionary to a JSON file with
+        proper formatting for readability. Includes proper path handling
+        and error handling.
+        
+        Args:
+            results: Dictionary containing evaluation results from evaluate_model().
+            output_path: File path where results should be saved.
+            
+        Raises:
+            Exception: If file writing fails.
+            
+        Example:
+            ```python
+            results = bench.evaluate_model(model_func)
+            bench.save_results(results, "results/model_evaluation.json")
+            ```
+        """
         output_file = Path(output_path).resolve()
         
         # Ensure output directory exists
@@ -341,14 +487,27 @@ class MEQBench:
             raise
     
     def create_sample_dataset(self, output_path: Optional[str] = None) -> List[MEQBenchItem]:
-        """
-        Create a sample dataset for testing
+        """Create a sample dataset for testing.
+        
+        Generates a small set of sample medical content items with different
+        complexity levels for testing and demonstration purposes.
         
         Args:
-            output_path: Path to save sample dataset
-            
+            output_path: Optional path to save the sample dataset as JSON.
+                If provided, saves the dataset to this file.
+                
         Returns:
-            List of sample MEQBenchItem objects
+            List of MEQBenchItem objects containing sample medical content
+            with basic, intermediate, and advanced complexity levels.
+            
+        Example:
+            ```python
+            # Create sample data
+            sample_items = bench.create_sample_dataset()
+            
+            # Create and save sample data
+            sample_items = bench.create_sample_dataset("data/sample_dataset.json")
+            ```
         """
         sample_items = [
             MEQBenchItem(
@@ -397,7 +556,26 @@ class MEQBench:
         return sample_items
     
     def get_benchmark_stats(self) -> Dict[str, Any]:
-        """Get statistics about the benchmark dataset"""
+        """Get statistics about the benchmark dataset.
+        
+        Provides summary statistics about the loaded benchmark items,
+        including total counts and distributions by complexity level
+        and source dataset.
+        
+        Returns:
+            Dictionary containing benchmark statistics with keys:
+            - total_items: Total number of benchmark items
+            - complexity_distribution: Count of items by complexity level
+            - source_distribution: Count of items by source dataset
+            - message: Informational message if no items are loaded
+            
+        Example:
+            ```python
+            stats = bench.get_benchmark_stats()
+            print(f"Total items: {stats['total_items']}")
+            print(f"Complexity distribution: {stats['complexity_distribution']}")
+            ```
+        """
         if not self.benchmark_items:
             return {'total_items': 0, 'message': 'No benchmark items loaded'}
         

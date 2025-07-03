@@ -1,5 +1,30 @@
-"""
-Prompt templates for audience-adaptive medical explanations
+"""Prompt templates for audience-adaptive medical explanations.
+
+This module provides standardized prompt templates for generating
+audience-adaptive medical explanations. It includes templates that
+instruct language models to create explanations tailored for different
+healthcare audiences (physicians, nurses, patients, caregivers).
+
+The module ensures consistent prompt formatting and response parsing
+across the MEQ-Bench evaluation framework.
+
+Key Classes:
+    AudienceAdaptivePrompt: Main prompt template class for generating
+        audience-specific medical explanations.
+
+Example:
+    ```python
+    from prompt_templates import AudienceAdaptivePrompt
+    
+    # Create prompt template
+    prompt_template = AudienceAdaptivePrompt()
+    
+    # Format prompt with medical content
+    prompt = prompt_template.format_prompt(medical_content)
+    
+    # Parse model response
+    explanations = prompt_template.parse_response(model_response)
+    ```
 """
 
 import re
@@ -12,8 +37,22 @@ logger = logging.getLogger('meq_bench.prompts')
 
 
 class AudienceAdaptivePrompt:
-    """
-    Standardized prompt template for generating audience-adaptive medical explanations
+    """Standardized prompt template for generating audience-adaptive medical explanations.
+    
+    This class provides a consistent template for instructing language models
+    to generate medical explanations adapted for four distinct healthcare audiences:
+    physicians, nurses, patients, and caregivers. Each explanation is tailored
+    to the specific needs, knowledge level, and communication preferences of
+    the target audience.
+    
+    The template ensures that explanations are:
+    - Appropriately technical for the audience
+    - Focused on relevant aspects for each role
+    - Formatted consistently for easy parsing
+    
+    Attributes:
+        base_template: The standardized prompt template string that instructs
+            the model to generate audience-specific explanations.
     """
     
     base_template = """Medical Information: {medical_content}
@@ -32,27 +71,55 @@ Generated Explanations:"""
 
     @classmethod
     def format_prompt(cls, medical_content: str) -> str:
-        """
-        Format the prompt template with medical content
+        """Format the prompt template with medical content.
+        
+        Takes medical information and inserts it into the standardized template
+        to create a complete prompt for the language model.
         
         Args:
-            medical_content: The medical information to be adapted
-            
+            medical_content: The medical information to be adapted for different
+                audiences. This should be the original medical content that needs
+                to be explained.
+                
         Returns:
-            Formatted prompt string
+            Formatted prompt string ready to be sent to a language model.
+            
+        Example:
+            ```python
+            medical_info = "Hypertension is high blood pressure that can damage organs."
+            prompt = AudienceAdaptivePrompt.format_prompt(medical_info)
+            ```
         """
         return cls.base_template.format(medical_content=medical_content)
     
     @staticmethod
     def parse_response(response: str) -> Dict[str, str]:
-        """
-        Parse the model response to extract audience-specific explanations using robust regex
+        """Parse the model response to extract audience-specific explanations.
+        
+        Extracts individual explanations for each audience from the model's
+        response using robust regex patterns. The parsing logic looks for 
+        audience indicators in the text and separates the explanations accordingly.
+        
+        Uses multiple pattern variations to handle different response formats
+        and includes fallback parsing for improved robustness.
         
         Args:
-            response: Model response containing all audience explanations
-            
+            response: Model response containing explanations for all audiences.
+                Expected to contain sections labeled with audience names
+                (physician, nurse, patient, caregiver).
+                
         Returns:
-            Dictionary with audience-specific explanations
+            Dictionary mapping audience names to their respective explanations.
+            Keys are audience names (e.g., 'physician', 'nurse', 'patient', 'caregiver').
+            Values are the explanation text for each audience.
+            
+        Example:
+            ```python
+            model_response = \"\"\"For a Physician: Technical explanation...
+            For a Patient: Simple explanation...\"\"\"
+            explanations = AudienceAdaptivePrompt.parse_response(model_response)
+            # Returns: {'physician': 'Technical explanation...', 'patient': 'Simple explanation...'}
+            ```
         """
         explanations = {}
         
