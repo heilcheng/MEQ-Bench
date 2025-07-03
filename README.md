@@ -39,9 +39,19 @@ MEQ-Bench/
 ### Installation
 
 ```bash
-git clone https://github.com/[username]/MEQ-Bench.git
+git clone https://github.com/heilcheng/MEQ-Bench.git
 cd MEQ-Bench
-pip install -r requirements.txt
+pip install .
+```
+
+For development with additional tools:
+```bash
+pip install .[dev]
+```
+
+For full installation with all optional dependencies:
+```bash
+pip install .[full]
 ```
 
 ### Basic Usage
