@@ -4,10 +4,15 @@ Basic usage example for MEQ-Bench
 
 import os
 import sys
+import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.benchmark import MEQBench
 from src.evaluator import MEQBenchEvaluator
+from src.config import config
+
+# Set up logging
+logger = logging.getLogger('meq_bench.examples')
 
 
 def dummy_model_function(prompt: str) -> str:

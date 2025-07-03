@@ -4,12 +4,16 @@ Main MEQ-Bench benchmark implementation
 
 import json
 import os
+import logging
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
 from pathlib import Path
 
+from .config import config
 from .prompt_templates import AudienceAdaptivePrompt
 from .evaluator import MEQBenchEvaluator, EvaluationScore
+
+logger = logging.getLogger('meq_bench.benchmark')
 
 
 @dataclass

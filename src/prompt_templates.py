@@ -2,6 +2,14 @@
 Prompt templates for audience-adaptive medical explanations
 """
 
+import logging
+from typing import Dict
+
+from .config import config
+
+logger = logging.getLogger('meq_bench.prompts')
+
+
 class AudienceAdaptivePrompt:
     """
     Standardized prompt template for generating audience-adaptive medical explanations

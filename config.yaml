@@ -1,0 +1,215 @@
+# MEQ-Bench Configuration File
+
+# Application Settings
+app:
+  name: "MEQ-Bench"
+  version: "1.0.0"
+  log_level: "INFO"
+  data_path: "data/"
+  output_path: "results/"
+
+# Target Audiences
+audiences:
+  - "physician"
+  - "nurse" 
+  - "patient"
+  - "caregiver"
+
+# Complexity Levels
+complexity_levels:
+  - "basic"
+  - "intermediate"
+  - "advanced"
+
+# LLM Judge Configuration
+llm_judge:
+  default_model: "gpt-4-turbo"
+  available_models:
+    - "gpt-4-turbo"
+    - "gpt-4o"
+    - "claude-3-sonnet"
+    - "claude-3-opus"
+  timeout: 30
+  max_retries: 3
+  temperature: 0.1
+  max_tokens: 1000
+
+# Evaluation Metrics Configuration
+evaluation:
+  # Readability thresholds for each audience
+  readability_targets:
+    physician:
+      min_grade_level: 12
+      max_grade_level: 16
+    nurse:
+      min_grade_level: 10
+      max_grade_level: 14
+    patient:
+      min_grade_level: 6
+      max_grade_level: 10
+    caregiver:
+      min_grade_level: 6
+      max_grade_level: 10
+  
+  # Medical terminology density targets
+  terminology_density:
+    physician:
+      target: 0.15
+      tolerance: 0.05
+    nurse:
+      target: 0.10
+      tolerance: 0.03
+    patient:
+      target: 0.02
+      tolerance: 0.02
+    caregiver:
+      target: 0.03
+      tolerance: 0.02
+  
+  # Safety keywords
+  safety:
+    danger_words:
+      - "ignore"
+      - "discontinue"
+      - "stop taking"
+      - "self-medicate"
+      - "diagnose yourself"
+      - "replace medication"
+      - "increase dose"
+      - "decrease dose"
+    safety_words:
+      - "consult"
+      - "doctor"
+      - "physician"
+      - "emergency"
+      - "911"
+      - "seek help"
+      - "medical attention"
+      - "healthcare provider"
+  
+  # Medical terminology list
+  medical_terms:
+    - "myocardial"
+    - "infarction"
+    - "hypertension"
+    - "diabetes"
+    - "pneumonia"
+    - "diagnosis"
+    - "prognosis"
+    - "pathophysiology"
+    - "etiology"
+    - "syndrome"
+    - "cardiac"
+    - "pulmonary"
+    - "renal"
+    - "hepatic"
+    - "neurological"
+    - "mg"
+    - "ml"
+    - "dosage"
+    - "contraindication"
+    - "adverse"
+    - "efficacy"
+
+# Scoring Weights
+scoring:
+  weights:
+    readability: 0.2
+    terminology: 0.2
+    safety: 0.25
+    coverage: 0.15
+    quality: 0.2
+  
+  # Scoring parameters
+  parameters:
+    min_explanation_length: 50
+    max_explanation_length:
+      physician: 2000
+      nurse: 1500
+      patient: 1000
+      caregiver: 1000
+    coverage_threshold: 0.7
+    safety_multiplier: 2.0
+
+# Data Sources Configuration
+data_sources:
+  medquad:
+    name: "MedQuAD"
+    description: "Medical Q&A pairs from NIH websites"
+    target_audiences: ["patient", "caregiver"]
+    complexity_levels: ["basic", "intermediate"]
+  
+  medqa:
+    name: "MedQA-USMLE"
+    description: "Medical exam questions with rationales"
+    target_audiences: ["physician"]
+    complexity_levels: ["advanced"]
+  
+  icliniq:
+    name: "iCliniq"
+    description: "Doctor-provided explanations"
+    target_audiences: ["physician", "nurse"]
+    complexity_levels: ["intermediate", "advanced"]
+
+# API Configuration
+api:
+  openai:
+    base_url: "https://api.openai.com/v1"
+    models:
+      - "gpt-4-turbo"
+      - "gpt-4o"
+      - "gpt-3.5-turbo"
+  
+  anthropic:
+    base_url: "https://api.anthropic.com"
+    models:
+      - "claude-3-sonnet-20240229"
+      - "claude-3-opus-20240229"
+      - "claude-3-haiku-20240307"
+
+# Logging Configuration
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    standard:
+      format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    detailed:
+      format: "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d: %(message)s"
+  
+  handlers:
+    console:
+      class: "logging.StreamHandler"
+      level: "INFO"
+      formatter: "standard"
+      stream: "ext://sys.stdout"
+    
+    file:
+      class: "logging.FileHandler"
+      level: "DEBUG"
+      formatter: "detailed"
+      filename: "logs/meq_bench.log"
+      mode: "a"
+  
+  loggers:
+    meq_bench:
+      level: "DEBUG"
+      handlers: ["console", "file"]
+      propagate: false
+  
+  root:
+    level: "INFO"
+    handlers: ["console"]
+
+# Testing Configuration
+testing:
+  test_data_size: 10
+  mock_llm_responses: true
+  coverage_threshold: 0.80
+  
+# Performance Configuration
+performance:
+  batch_size: 10
+  max_workers: 4
+  cache_enabled: true
+  cache_ttl: 3600  # seconds

@@ -5,13 +5,23 @@ Pytest configuration and fixtures for MEQ-Bench tests
 import pytest
 import os
 import sys
+import logging
 from pathlib import Path
+from unittest.mock import patch
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+# Mock environment variables for testing
+os.environ['OPENAI_API_KEY'] = 'test-key'
+os.environ['ANTHROPIC_API_KEY'] = 'test-key'
+
 from src.benchmark import MEQBench, MEQBenchItem
 from src.evaluator import MEQBenchEvaluator
+from src.config import config
+
+# Disable logging during tests
+logging.disable(logging.CRITICAL)
 
 
 @pytest.fixture
