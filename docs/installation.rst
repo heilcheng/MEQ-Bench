@@ -17,7 +17,9 @@ Install MEQ-Bench using pip:
 
    git clone https://github.com/heilcheng/MEQ-Bench.git
    cd MEQ-Bench
-   pip install -r requirements.txt
+   pip install .
+
+This command uses the setup.py file to install the package and its dependencies correctly. The setup.py file automatically handles all core dependencies defined in the install_requires section.
 
 Development Installation
 ------------------------

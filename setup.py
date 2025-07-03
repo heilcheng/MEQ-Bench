@@ -24,7 +24,7 @@ setup(
     description="A Resource-Efficient Benchmark for Evaluating Audience-Adaptive Explanation Quality in Medical Large Language Models",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/username/MEQ-Bench",
+    url="https://github.com/heilcheng/MEQ-Bench",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
