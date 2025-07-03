@@ -149,3 +149,79 @@ class TestMEQBench:
             loaded_results = json.load(f)
         
         assert loaded_results == test_results
+    
+    def test_add_duplicate_benchmark_item(self, sample_benchmark_item):
+        """Test that adding a benchmark item with a duplicate ID raises a ValueError"""
+        bench = MEQBench()
+        
+        # Add the first item
+        bench.add_benchmark_item(sample_benchmark_item)
+        assert len(bench.benchmark_items) == 1
+        
+        # Try to add another item with the same ID
+        duplicate_item = MEQBenchItem(
+            id=sample_benchmark_item.id,  # Same ID as the first item
+            medical_content="Different content",
+            complexity_level="intermediate",
+            source_dataset="different_source"
+        )
+        
+        # Should raise ValueError due to duplicate ID
+        with pytest.raises(ValueError, match=f"Item with ID '{sample_benchmark_item.id}' already exists"):
+            bench.add_benchmark_item(duplicate_item)
+        
+        # Verify the original item count remains the same
+        assert len(bench.benchmark_items) == 1
+    
+    def test_generate_explanations_empty_content(self, dummy_model_function):
+        """Test that generate_explanations raises a ValueError when medical_content is empty"""
+        bench = MEQBench()
+        
+        # Test with completely empty string
+        with pytest.raises(ValueError, match="medical_content cannot be empty or contain only whitespace"):
+            bench.generate_explanations("", dummy_model_function)
+        
+        # Test with whitespace-only string
+        with pytest.raises(ValueError, match="medical_content cannot be empty or contain only whitespace"):
+            bench.generate_explanations("   \n\t  ", dummy_model_function)
+        
+        # Test with very short content (less than 10 characters)
+        with pytest.raises(ValueError, match="medical_content must be at least 10 characters long"):
+            bench.generate_explanations("short", dummy_model_function)
+    
+    def test_evaluate_model_no_items(self, dummy_model_function):
+        """Test that evaluate_model returns appropriate result when there are no benchmark items"""
+        bench = MEQBench()
+        
+        # Ensure no items are loaded
+        assert len(bench.benchmark_items) == 0
+        
+        # Evaluate model with no items
+        results = bench.evaluate_model(dummy_model_function)
+        
+        # Should return a valid results structure but with zero items
+        assert isinstance(results, dict)
+        assert results['total_items'] == 0
+        assert 'audience_scores' in results
+        assert 'complexity_scores' in results
+        assert 'detailed_results' in results
+        assert 'summary' in results
+        
+        # All audience scores should be empty lists
+        for audience in ['physician', 'nurse', 'patient', 'caregiver']:
+            assert results['audience_scores'][audience] == []
+        
+        # All complexity scores should be empty lists
+        for complexity in ['basic', 'intermediate', 'advanced']:
+            assert results['complexity_scores'][complexity] == []
+        
+        # Detailed results should be empty
+        assert results['detailed_results'] == []
+        
+        # Summary should handle empty data gracefully
+        summary = results['summary']
+        assert isinstance(summary, dict)
+        # Most summary stats should be absent or 0 for empty data
+        if 'overall_mean' in summary:
+            # If present, should be a reasonable default or empty value
+            assert summary['overall_mean'] is None or isinstance(summary['overall_mean'], (int, float))

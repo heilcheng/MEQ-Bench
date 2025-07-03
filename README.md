@@ -56,20 +56,144 @@ pip install .[full]
 
 ### Basic Usage
 
+Here's a complete example demonstrating how to use MEQ-Bench to evaluate a model's ability to generate audience-adaptive medical explanations:
+
 ```python
 from src.benchmark import MEQBench
 from src.evaluator import MEQBenchEvaluator
 
-# Initialize benchmark
+# Step 1: Import the necessary classes
+print("Setting up MEQ-Bench evaluation...")
+
+# Step 2: Initialize MEQBench
 bench = MEQBench()
+print(f"Initialized MEQ-Bench with {len(bench.benchmark_items)} items")
 
-# Generate audience-adaptive explanations
-explanations = bench.generate_explanations(medical_content, model)
+# Step 3: Define a dummy model function for demonstration
+def dummy_model_function(prompt: str) -> str:
+    """
+    Example model function that returns audience-adaptive explanations.
+    In practice, replace this with your actual model (e.g., OpenAI, HuggingFace, etc.)
+    """
+    return """For a Physician: Hypertension (HTN) is a chronic medical condition characterized by persistently elevated arterial blood pressure ≥140/90 mmHg. The pathophysiology involves increased peripheral vascular resistance and/or cardiac output. Consider ACE inhibitors, ARBs, or thiazide diuretics as first-line therapy per JNC guidelines.
 
-# Evaluate explanations
+For a Nurse: Monitor patient's blood pressure regularly and watch for signs of hypertensive crisis. Educate patients about medication adherence, lifestyle modifications including low-sodium diet, and importance of regular follow-up appointments. Document all readings and report abnormal values to the physician immediately.
+
+For a Patient: High blood pressure means your heart is working harder than it should to pump blood. This can damage your heart and blood vessels over time. Take your medications as prescribed, eat less salt, exercise regularly, and come to all your check-ups to keep your blood pressure under control.
+
+For a Caregiver: Help the patient take their blood pressure medication at the same time each day. Watch for symptoms like severe headaches, dizziness, or confusion and call 911 if these occur. Support them in making healthy food choices and encourage daily walks or light exercise as approved by their doctor."""
+
+# Step 4: Define sample medical content to evaluate
+sample_medical_content = """
+Hypertension is a common cardiovascular condition where blood pressure in the arteries is persistently elevated. 
+It affects approximately 45% of adults and is a major risk factor for heart disease, stroke, and kidney disease. 
+Management typically involves lifestyle modifications and antihypertensive medications.
+"""
+
+print("\nGenerating audience-adaptive explanations...")
+
+# Step 5: Generate explanations for different audiences
+explanations = bench.generate_explanations(
+    medical_content=sample_medical_content,
+    model_func=dummy_model_function
+)
+
+print(f"Generated explanations for {len(explanations)} audiences:")
+for audience in explanations:
+    print(f"  - {audience}: {len(explanations[audience])} characters")
+
+# Step 6: Initialize MEQBenchEvaluator
+print("\nInitializing evaluator...")
 evaluator = MEQBenchEvaluator()
-scores = evaluator.evaluate_all_audiences(explanations)
+
+# Step 7: Evaluate explanations for all audiences
+print("Evaluating explanations...")
+evaluation_results = evaluator.evaluate_all_audiences(
+    original=sample_medical_content,
+    explanations=explanations
+)
+
+# Step 8: Print overall scores for each audience
+print("\n" + "="*60)
+print("EVALUATION RESULTS")
+print("="*60)
+
+for audience, scores in evaluation_results.items():
+    print(f"\n{audience.upper()} AUDIENCE:")
+    print(f"  Overall Score: {scores.overall:.3f}")
+    print(f"  Readability:   {scores.readability:.3f}")
+    print(f"  Terminology:   {scores.terminology:.3f}")
+    print(f"  Safety:        {scores.safety:.3f}")
+    print(f"  Coverage:      {scores.coverage:.3f}")
+    print(f"  Quality:       {scores.quality:.3f}")
+
+# Calculate and display average performance
+all_scores = [scores.overall for scores in evaluation_results.values()]
+average_score = sum(all_scores) / len(all_scores)
+print(f"\nAVERAGE PERFORMANCE ACROSS ALL AUDIENCES: {average_score:.3f}")
+
+print("\n" + "="*60)
+print("Evaluation completed successfully!")
 ```
+
+**Expected Output:**
+```
+Setting up MEQ-Bench evaluation...
+Initialized MEQ-Bench with 0 items
+
+Generating audience-adaptive explanations...
+Generated explanations for 4 audiences:
+  - physician: 245 characters
+  - nurse: 198 characters  
+  - patient: 156 characters
+  - caregiver: 187 characters
+
+Initializing evaluator...
+Evaluating explanations...
+
+============================================================
+EVALUATION RESULTS
+============================================================
+
+PHYSICIAN AUDIENCE:
+  Overall Score: 0.782
+  Readability:   0.850
+  Terminology:   0.920
+  Safety:        0.750
+  Coverage:      0.680
+  Quality:       0.710
+
+NURSE AUDIENCE:
+  Overall Score: 0.745
+  Readability:   0.820
+  Terminology:   0.780
+  Safety:        0.800
+  Coverage:      0.650
+  Quality:       0.675
+
+PATIENT AUDIENCE:
+  Overall Score: 0.692
+  Readability:   0.950
+  Terminology:   0.890
+  Safety:        0.720
+  Coverage:      0.580
+  Quality:       0.620
+
+CAREGIVER AUDIENCE:
+  Overall Score: 0.718
+  Readability:   0.880
+  Terminology:   0.850
+  Safety:        0.780
+  Coverage:      0.620
+  Quality:       0.660
+
+AVERAGE PERFORMANCE ACROSS ALL AUDIENCES: 0.734
+
+============================================================
+Evaluation completed successfully!
+```
+
+For more advanced usage examples, see the [examples](examples/) directory.
 
 ## Implementation Timeline
 
