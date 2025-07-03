@@ -29,7 +29,7 @@ Example:
 
 import re
 import logging
-from typing import Dict
+from typing import Dict, List, Optional
 
 from .config import config
 
@@ -55,7 +55,7 @@ class AudienceAdaptivePrompt:
             the model to generate audience-specific explanations.
     """
     
-    base_template = """Medical Information: {medical_content}
+    base_template: str = """Medical Information: {medical_content}
 
 Transform this explanation for four distinct audiences. Ensure each explanation is self-contained and clearly labeled:
 
@@ -121,7 +121,7 @@ Generated Explanations:"""
             # Returns: {'physician': 'Technical explanation...', 'patient': 'Simple explanation...'}
             ```
         """
-        explanations = {}
+        explanations: Dict[str, str] = {}
         
         # Get supported audiences from configuration
         try:
@@ -246,7 +246,7 @@ Generated Explanations:"""
         return text.strip()
     
     @staticmethod
-    def _fallback_parse(response: str, audiences: list) -> Dict[str, str]:
+    def _fallback_parse(response: str, audiences: List[str]) -> Dict[str, str]:
         """
         Fallback parsing method using simple keyword search
         
@@ -257,12 +257,12 @@ Generated Explanations:"""
         Returns:
             Dictionary with extracted explanations
         """
-        explanations = {}
+        explanations: Dict[str, str] = {}
         
         # Split response into sections based on audience keywords
         lines = response.split('\n')
-        current_audience = None
-        current_text = []
+        current_audience: Optional[str] = None
+        current_text: List[str] = []
         
         for line in lines:
             line_lower = line.lower().strip()

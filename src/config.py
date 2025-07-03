@@ -16,7 +16,7 @@ import yaml
 import os
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, Type
 
 
 class ConfigurationError(Exception):
@@ -58,15 +58,15 @@ class Config:
         ```
     """
     
-    _instance = None
-    _config = None
+    _instance: Optional['Config'] = None
+    _config: Optional[Dict[str, Any]] = None
     
-    def __new__(cls):
+    def __new__(cls) -> 'Config':
         if cls._instance is None:
             cls._instance = super(Config, cls).__new__(cls)
         return cls._instance
     
-    def __init__(self):
+    def __init__(self) -> None:
         if self._config is None:
             self.load_config()
     
@@ -86,7 +86,7 @@ class Config:
         if config_path is None:
             # Look for config.yaml in the project root
             current_dir = Path(__file__).parent.parent
-            config_path = current_dir / "config.yaml"
+            config_path = str(current_dir / "config.yaml")
         
         try:
             with open(config_path, 'r') as f:
@@ -108,10 +108,10 @@ class Config:
         ]
         
         for section in required_sections:
-            if section not in self._config:
+            if self._config is None or section not in self._config:
                 raise ConfigurationError(f"Missing required configuration section: {section}")
     
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
         """Get configuration value using dot notation.
         
         Retrieves configuration values using a dot-separated key path. For example,
@@ -129,6 +129,11 @@ class Config:
         Raises:
             ConfigurationError: If key is not found and no default value is provided.
         """
+        if self._config is None:
+            if default is not None:
+                return default
+            raise ConfigurationError(f"Configuration not loaded: {key}")
+            
         keys = key.split('.')
         value = self._config
         
