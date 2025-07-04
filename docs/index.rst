@@ -5,11 +5,29 @@ Welcome to MEQ-Bench, a resource-efficient benchmark for evaluating audience-ada
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Getting Started:
 
    installation
    quickstart
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Core Functionality:
+
+   data_loading
+   evaluation_metrics
+   leaderboard
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference:
+
    api/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Advanced Topics:
+
    evaluation
    examples
    contributing
@@ -28,6 +46,10 @@ Key Features
 ------------
 
 * **Novel Evaluation Framework**: First benchmark to systematically evaluate audience-adaptive medical explanations
+* **Comprehensive Data Loading**: Support for MedQA-USMLE, iCliniq, and Cochrane Reviews datasets
+* **Advanced Safety Metrics**: Contradiction detection, information preservation, and hallucination detection
+* **Automated Complexity Stratification**: Flesch-Kincaid Grade Level based content categorization
+* **Interactive Leaderboards**: Beautiful, responsive HTML leaderboards for result visualization
 * **Resource-Efficient Methodology**: Uses existing validated medical datasets
 * **Validated Automated Evaluation**: Multi-dimensional scoring with LLM-as-a-judge paradigm
 * **Democratized Access**: Optimized for open-weight models on consumer hardware
