@@ -267,6 +267,7 @@ def main():
     else:
         # Non-interactive mode (CI/CD) - use dummy model by default
         print("\nNon-interactive environment detected, using dummy model...")
+        choice = "1"  # Set for later reference
         model_function = dummy_model_function
         model_type = "Dummy model"
     
