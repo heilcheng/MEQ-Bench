@@ -29,234 +29,222 @@ import re
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('meq_bench.leaderboard')
+logger = logging.getLogger("meq_bench.leaderboard")
 
 
 class LeaderboardGenerator:
     """Generate static HTML leaderboard from evaluation results"""
-    
+
     def __init__(self):
         self.results_data: List[Dict[str, Any]] = []
         self.benchmark_stats: Dict[str, Any] = {}
-        
+
     def load_results(self, results_dir: Path) -> None:
         """Load all result files from a directory
-        
+
         Args:
             results_dir: Directory containing JSON result files
         """
         if not results_dir.exists():
             raise FileNotFoundError(f"Results directory not found: {results_dir}")
-        
+
         result_files = list(results_dir.glob("*.json"))
         if not result_files:
             raise ValueError(f"No JSON result files found in {results_dir}")
-        
+
         logger.info(f"Found {len(result_files)} result files")
-        
+
         for result_file in result_files:
             try:
-                with open(result_file, 'r', encoding='utf-8') as f:
+                with open(result_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    
+
                 # Validate required fields
-                required_fields = ['model_name', 'total_items', 'audience_scores', 'summary']
+                required_fields = ["model_name", "total_items", "audience_scores", "summary"]
                 if all(field in data for field in required_fields):
                     self.results_data.append(data)
                     logger.debug(f"Loaded results for {data['model_name']}")
                 else:
                     logger.warning(f"Invalid result file format: {result_file}")
-                    
+
             except Exception as e:
                 logger.error(f"Error loading {result_file}: {e}")
-        
+
         if not self.results_data:
             raise ValueError("No valid result files were loaded")
-        
+
         logger.info(f"Successfully loaded {len(self.results_data)} evaluation results")
-    
+
     def calculate_leaderboard_stats(self) -> Dict[str, Any]:
         """Calculate overall leaderboard statistics
-        
+
         Returns:
             Dictionary containing leaderboard statistics
         """
         if not self.results_data:
             return {}
-        
+
         # Calculate aggregate statistics
         total_models = len(self.results_data)
-        total_evaluations = sum(result['total_items'] for result in self.results_data)
-        
+        total_evaluations = sum(result["total_items"] for result in self.results_data)
+
         # Audience coverage
         all_audiences = set()
         for result in self.results_data:
-            all_audiences.update(result['audience_scores'].keys())
-        
+            all_audiences.update(result["audience_scores"].keys())
+
         # Complexity coverage
         all_complexities = set()
         for result in self.results_data:
-            if 'complexity_scores' in result:
-                all_complexities.update(result['complexity_scores'].keys())
-        
+            if "complexity_scores" in result:
+                all_complexities.update(result["complexity_scores"].keys())
+
         # Performance ranges
-        overall_scores = [result['summary'].get('overall_mean', 0) for result in self.results_data]
+        overall_scores = [result["summary"].get("overall_mean", 0) for result in self.results_data]
         if overall_scores:
             best_score = max(overall_scores)
             worst_score = min(overall_scores)
             avg_score = sum(overall_scores) / len(overall_scores)
         else:
             best_score = worst_score = avg_score = 0
-        
+
         return {
-            'total_models': total_models,
-            'total_evaluations': total_evaluations,
-            'audiences': sorted(list(all_audiences)),
-            'complexity_levels': sorted(list(all_complexities)),
-            'best_score': best_score,
-            'worst_score': worst_score,
-            'average_score': avg_score,
-            'last_updated': datetime.now().isoformat()
+            "total_models": total_models,
+            "total_evaluations": total_evaluations,
+            "audiences": sorted(list(all_audiences)),
+            "complexity_levels": sorted(list(all_complexities)),
+            "best_score": best_score,
+            "worst_score": worst_score,
+            "average_score": avg_score,
+            "last_updated": datetime.now().isoformat(),
         }
-    
+
     def rank_models(self) -> List[Dict[str, Any]]:
         """Rank models by overall performance
-        
+
         Returns:
             List of model results sorted by overall performance
         """
-        ranked_models = sorted(
-            self.results_data,
-            key=lambda x: x['summary'].get('overall_mean', 0),
-            reverse=True
-        )
-        
+        ranked_models = sorted(self.results_data, key=lambda x: x["summary"].get("overall_mean", 0), reverse=True)
+
         # Add ranking information
         for i, model in enumerate(ranked_models):
-            model['rank'] = i + 1
-            model['overall_score'] = model['summary'].get('overall_mean', 0)
-        
+            model["rank"] = i + 1
+            model["overall_score"] = model["summary"].get("overall_mean", 0)
+
         return ranked_models
-    
+
     def generate_audience_breakdown(self, ranked_models: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Generate audience-specific performance breakdown
-        
+
         Args:
             ranked_models: List of ranked model results
-            
+
         Returns:
             Dictionary mapping audience to ranked model performance
         """
         audience_breakdown = {}
-        
+
         # Get all audiences
         all_audiences = set()
         for model in ranked_models:
-            all_audiences.update(model['audience_scores'].keys())
-        
+            all_audiences.update(model["audience_scores"].keys())
+
         for audience in sorted(all_audiences):
             audience_models = []
-            
+
             for model in ranked_models:
-                if audience in model['audience_scores']:
-                    scores = model['audience_scores'][audience]
+                if audience in model["audience_scores"]:
+                    scores = model["audience_scores"][audience]
                     avg_score = sum(scores) / len(scores) if scores else 0
-                    
-                    audience_models.append({
-                        'model_name': model['model_name'],
-                        'score': avg_score,
-                        'num_items': len(scores)
-                    })
-            
+
+                    audience_models.append({"model_name": model["model_name"], "score": avg_score, "num_items": len(scores)})
+
             # Sort by score for this audience
-            audience_models.sort(key=lambda x: x['score'], reverse=True)
-            
+            audience_models.sort(key=lambda x: x["score"], reverse=True)
+
             # Add rankings
             for i, model in enumerate(audience_models):
-                model['rank'] = i + 1
-            
+                model["rank"] = i + 1
+
             audience_breakdown[audience] = audience_models
-        
+
         return audience_breakdown
-    
+
     def generate_complexity_breakdown(self, ranked_models: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Generate complexity-specific performance breakdown
-        
+
         Args:
             ranked_models: List of ranked model results
-            
+
         Returns:
             Dictionary mapping complexity level to ranked model performance
         """
         complexity_breakdown = {}
-        
+
         # Get all complexity levels
         all_complexities = set()
         for model in ranked_models:
-            if 'complexity_scores' in model:
-                all_complexities.update(model['complexity_scores'].keys())
-        
+            if "complexity_scores" in model:
+                all_complexities.update(model["complexity_scores"].keys())
+
         for complexity in sorted(all_complexities):
             complexity_models = []
-            
+
             for model in ranked_models:
-                if 'complexity_scores' in model and complexity in model['complexity_scores']:
-                    scores = model['complexity_scores'][complexity]
+                if "complexity_scores" in model and complexity in model["complexity_scores"]:
+                    scores = model["complexity_scores"][complexity]
                     avg_score = sum(scores) / len(scores) if scores else 0
-                    
-                    complexity_models.append({
-                        'model_name': model['model_name'],
-                        'score': avg_score,
-                        'num_items': len(scores)
-                    })
-            
+
+                    complexity_models.append({"model_name": model["model_name"], "score": avg_score, "num_items": len(scores)})
+
             # Sort by score for this complexity level
-            complexity_models.sort(key=lambda x: x['score'], reverse=True)
-            
+            complexity_models.sort(key=lambda x: x["score"], reverse=True)
+
             # Add rankings
             for i, model in enumerate(complexity_models):
-                model['rank'] = i + 1
-            
+                model["rank"] = i + 1
+
             complexity_breakdown[complexity] = complexity_models
-        
+
         return complexity_breakdown
-    
+
     def generate_html(self, output_path: Path) -> None:
         """Generate static HTML leaderboard
-        
+
         Args:
             output_path: Path where to save the HTML file
         """
         if not self.results_data:
             raise ValueError("No results data loaded")
-        
+
         # Calculate statistics and rankings
         stats = self.calculate_leaderboard_stats()
         ranked_models = self.rank_models()
         audience_breakdown = self.generate_audience_breakdown(ranked_models)
         complexity_breakdown = self.generate_complexity_breakdown(ranked_models)
-        
+
         # Generate HTML content
-        html_content = self._generate_html_template(
-            stats, ranked_models, audience_breakdown, complexity_breakdown
-        )
-        
+        html_content = self._generate_html_template(stats, ranked_models, audience_breakdown, complexity_breakdown)
+
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Write HTML file
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        
+
         logger.info(f"Generated leaderboard HTML: {output_path}")
-    
-    def _generate_html_template(self, 
-                               stats: Dict[str, Any],
-                               ranked_models: List[Dict[str, Any]],
-                               audience_breakdown: Dict[str, List[Dict[str, Any]]],
-                               complexity_breakdown: Dict[str, List[Dict[str, Any]]]) -> str:
+
+    def _generate_html_template(
+        self,
+        stats: Dict[str, Any],
+        ranked_models: List[Dict[str, Any]],
+        audience_breakdown: Dict[str, List[Dict[str, Any]]],
+        complexity_breakdown: Dict[str, List[Dict[str, Any]]],
+    ) -> str:
         """Generate the complete HTML template"""
-        
+
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -347,7 +335,7 @@ class LeaderboardGenerator:
     </script>
 </body>
 </html>"""
-    
+
     def _get_css_styles(self) -> str:
         """Return CSS styles for the leaderboard"""
         return """
@@ -611,7 +599,7 @@ class LeaderboardGenerator:
             }
         }
         """
-    
+
     def _generate_overall_rankings_table(self, ranked_models: List[Dict[str, Any]]) -> str:
         """Generate the overall rankings table HTML"""
         table_html = """
@@ -630,22 +618,22 @@ class LeaderboardGenerator:
             </thead>
             <tbody>
         """
-        
+
         for model in ranked_models:
             rank_class = ""
-            if model['rank'] == 1:
+            if model["rank"] == 1:
                 rank_class = "rank-1"
-            elif model['rank'] == 2:
+            elif model["rank"] == 2:
                 rank_class = "rank-2"
-            elif model['rank'] == 3:
+            elif model["rank"] == 3:
                 rank_class = "rank-3"
-            
+
             # Calculate audience averages
             audience_scores = {}
-            for audience, scores in model['audience_scores'].items():
+            for audience, scores in model["audience_scores"].items():
                 avg_score = sum(scores) / len(scores) if scores else 0
                 audience_scores[audience] = avg_score
-            
+
             table_html += f"""
                 <tr class="{rank_class}">
                     <td class="rank">#{model['rank']}</td>
@@ -658,18 +646,18 @@ class LeaderboardGenerator:
                     <td>{audience_scores.get('caregiver', 0):.3f}</td>
                 </tr>
             """
-        
+
         table_html += """
             </tbody>
         </table>
         """
-        
+
         return table_html
-    
+
     def _generate_audience_breakdown_section(self, audience_breakdown: Dict[str, List[Dict[str, Any]]]) -> str:
         """Generate the audience breakdown section HTML"""
         html = ""
-        
+
         for audience, models in audience_breakdown.items():
             html += f"""
             <div class="audience-section">
@@ -685,16 +673,16 @@ class LeaderboardGenerator:
                     </thead>
                     <tbody>
             """
-            
+
             for model in models[:10]:  # Show top 10
                 rank_class = ""
-                if model['rank'] == 1:
+                if model["rank"] == 1:
                     rank_class = "rank-1"
-                elif model['rank'] == 2:
+                elif model["rank"] == 2:
                     rank_class = "rank-2"
-                elif model['rank'] == 3:
+                elif model["rank"] == 3:
                     rank_class = "rank-3"
-                
+
                 html += f"""
                     <tr class="{rank_class}">
                         <td class="rank">#{model['rank']}</td>
@@ -703,19 +691,19 @@ class LeaderboardGenerator:
                         <td>{model['num_items']}</td>
                     </tr>
                 """
-            
+
             html += """
                     </tbody>
                 </table>
             </div>
             """
-        
+
         return html
-    
+
     def _generate_complexity_breakdown_section(self, complexity_breakdown: Dict[str, List[Dict[str, Any]]]) -> str:
         """Generate the complexity breakdown section HTML"""
         html = ""
-        
+
         for complexity, models in complexity_breakdown.items():
             html += f"""
             <div class="complexity-section">
@@ -731,16 +719,16 @@ class LeaderboardGenerator:
                     </thead>
                     <tbody>
             """
-            
+
             for model in models[:10]:  # Show top 10
                 rank_class = ""
-                if model['rank'] == 1:
+                if model["rank"] == 1:
                     rank_class = "rank-1"
-                elif model['rank'] == 2:
+                elif model["rank"] == 2:
                     rank_class = "rank-2"
-                elif model['rank'] == 3:
+                elif model["rank"] == 3:
                     rank_class = "rank-3"
-                
+
                 html += f"""
                     <tr class="{rank_class}">
                         <td class="rank">#{model['rank']}</td>
@@ -749,34 +737,33 @@ class LeaderboardGenerator:
                         <td>{model['num_items']}</td>
                     </tr>
                 """
-            
+
             html += """
                     </tbody>
                 </table>
             </div>
             """
-        
+
         return html
-    
-    def _generate_javascript(self, 
-                           ranked_models: List[Dict[str, Any]], 
-                           audience_breakdown: Dict[str, List[Dict[str, Any]]],
-                           stats: Dict[str, Any]) -> str:
+
+    def _generate_javascript(
+        self, ranked_models: List[Dict[str, Any]], audience_breakdown: Dict[str, List[Dict[str, Any]]], stats: Dict[str, Any]
+    ) -> str:
         """Generate JavaScript for interactive features"""
-        
+
         # Prepare data for charts
-        model_names = [model['model_name'][:20] for model in ranked_models[:8]]  # Top 8 models
-        model_scores = [model['overall_score'] for model in ranked_models[:8]]
-        
+        model_names = [model["model_name"][:20] for model in ranked_models[:8]]  # Top 8 models
+        model_scores = [model["overall_score"] for model in ranked_models[:8]]
+
         audience_labels = list(audience_breakdown.keys())
         audience_data = []
         for audience in audience_labels:
             if audience_breakdown[audience]:
-                avg_score = sum(model['score'] for model in audience_breakdown[audience]) / len(audience_breakdown[audience])
+                avg_score = sum(model["score"] for model in audience_breakdown[audience]) / len(audience_breakdown[audience])
                 audience_data.append(avg_score)
             else:
                 audience_data.append(0)
-        
+
         return f"""
         function showTab(tabName) {{
             // Hide all tab contents
@@ -872,36 +859,23 @@ Examples:
     
     # Generate with custom title
     python -m src.leaderboard --input results/ --output leaderboard.html --title "Custom MEQ-Bench Results"
-        """
+        """,
     )
-    
+
+    parser.add_argument("--input", "-i", type=str, required=True, help="Directory containing JSON evaluation result files")
+
     parser.add_argument(
-        '--input', '-i',
+        "--output",
+        "-o",
         type=str,
-        required=True,
-        help='Directory containing JSON evaluation result files'
+        default="docs/index.html",
+        help="Output path for the HTML leaderboard (default: docs/index.html)",
     )
-    
-    parser.add_argument(
-        '--output', '-o',
-        type=str,
-        default='docs/index.html',
-        help='Output path for the HTML leaderboard (default: docs/index.html)'
-    )
-    
-    parser.add_argument(
-        '--title',
-        type=str,
-        default='MEQ-Bench Leaderboard',
-        help='Custom title for the leaderboard page'
-    )
-    
-    parser.add_argument(
-        '--verbose', '-v',
-        action='store_true',
-        help='Enable verbose logging'
-    )
-    
+
+    parser.add_argument("--title", type=str, default="MEQ-Bench Leaderboard", help="Custom title for the leaderboard page")
+
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
+
     return parser
 
 
@@ -909,26 +883,26 @@ def main():
     """Main function for command-line usage"""
     parser = setup_argument_parser()
     args = parser.parse_args()
-    
+
     # Set logging level
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     try:
         # Initialize leaderboard generator
         generator = LeaderboardGenerator()
-        
+
         # Load results
         results_dir = Path(args.input)
         generator.load_results(results_dir)
-        
+
         # Generate HTML leaderboard
         output_path = Path(args.output)
         generator.generate_html(output_path)
-        
+
         logger.info(f"✅ Leaderboard generated successfully: {output_path}")
         logger.info(f"📊 Processed {len(generator.results_data)} model results")
-        
+
     except Exception as e:
         logger.error(f"❌ Error generating leaderboard: {e}")
         sys.exit(1)

@@ -1,8 +1,8 @@
 """MEQ-Bench: A Resource-Efficient Benchmark for Evaluating Medical LLM Explanation Quality.
 
-MEQ-Bench is the first benchmark specifically designed to assess an LLM's ability to generate 
-audience-adaptive medical explanations for four key stakeholders: physicians, nurses, patients, 
-and caregivers. This package provides a comprehensive evaluation framework that combines 
+MEQ-Bench is the first benchmark specifically designed to assess an LLM's ability to generate
+audience-adaptive medical explanations for four key stakeholders: physicians, nurses, patients,
+and caregivers. This package provides a comprehensive evaluation framework that combines
 automated metrics with LLM-as-a-judge evaluation.
 
 Key Features:
@@ -14,11 +14,11 @@ Key Features:
 Typical usage example:
     ```python
     from meq_bench import MEQBench, MEQBenchEvaluator
-    
+
     # Initialize benchmark
     bench = MEQBench()
     evaluator = MEQBenchEvaluator()
-    
+
     # Generate and evaluate explanations
     explanations = bench.generate_explanations(medical_content, model_func)
     scores = evaluator.evaluate_all_audiences(medical_content, explanations)
@@ -31,17 +31,11 @@ __email__ = "contact@meq-bench.org"
 
 # Initialize configuration and logging
 from .config import config
-config.setup_logging()
-
 from .benchmark import MEQBench
 from .evaluator import MEQBenchEvaluator
 from .prompt_templates import AudienceAdaptivePrompt
 from .strategies import StrategyFactory
 
-__all__ = [
-    "MEQBench", 
-    "MEQBenchEvaluator", 
-    "AudienceAdaptivePrompt",
-    "StrategyFactory",
-    "config"
-]
+config.setup_logging()
+
+__all__ = ["MEQBench", "MEQBenchEvaluator", "AudienceAdaptivePrompt", "StrategyFactory", "config"]
