@@ -7,6 +7,10 @@ The deployment of Large Language Models (LLMs) in healthcare requires not only m
 ## Key Features
 
 - **Novel Evaluation Framework**: First benchmark to systematically evaluate audience-adaptive medical explanations
+- **Comprehensive Data Loading**: Built-in support for MedQA-USMLE, iCliniq, and Cochrane Reviews datasets
+- **Advanced Safety Metrics**: Contradiction detection, information preservation, and hallucination detection
+- **Automated Complexity Stratification**: Flesch-Kincaid Grade Level based content categorization
+- **Interactive Leaderboards**: Beautiful, responsive HTML leaderboards for result visualization
 - **Resource-Efficient Methodology**: Uses existing validated medical datasets, eliminating costly de novo content creation
 - **Validated Automated Evaluation**: Multi-dimensional scoring with LLM-as-a-judge paradigm
 - **Democratized Access**: Optimized for open-weight models on consumer hardware (e.g., Apple Silicon)
@@ -192,6 +196,115 @@ AVERAGE PERFORMANCE ACROSS ALL AUDIENCES: 0.734
 ============================================================
 Evaluation completed successfully!
 ```
+
+## New Features & Enhancements
+
+### 🔧 Data Loading Pipeline
+
+MEQ-Bench now includes comprehensive data loading functionality for popular medical datasets:
+
+```bash
+# Process datasets from multiple sources
+python scripts/process_datasets.py \
+    --medqa data/medqa_usmle.json \
+    --icliniq data/icliniq.json \
+    --cochrane data/cochrane.json \
+    --output data/benchmark_items.json \
+    --max-items 1000 \
+    --balance-complexity \
+    --validate \
+    --stats
+```
+
+**Supported Datasets:**
+- **MedQA-USMLE**: Medical question answering based on USMLE exam format
+- **iCliniq**: Real clinical questions from patients with professional answers  
+- **Cochrane Reviews**: Evidence-based systematic reviews and meta-analyses
+
+**Features:**
+- Automatic complexity stratification using Flesch-Kincaid Grade Level
+- Data validation and quality checks
+- Balanced distribution across complexity levels
+- Comprehensive statistics and reporting
+
+### 🛡️ Enhanced Safety Metrics
+
+Three new specialized safety and factual consistency metrics:
+
+```python
+from src.evaluator import (
+    ContradictionDetection,
+    InformationPreservation, 
+    HallucinationDetection
+)
+
+# Detect medical contradictions
+contradiction_score = ContradictionDetection().calculate(
+    text="Antibiotics are effective for viral infections",
+    audience="patient"
+)
+
+# Check information preservation
+preservation_score = InformationPreservation().calculate(
+    text="Take 10mg twice daily with food",
+    audience="patient", 
+    original="Take lisinopril 10mg BID with meals"
+)
+
+# Detect hallucinated medical entities
+hallucination_score = HallucinationDetection().calculate(
+    text="Patient should take metformin for headaches",
+    audience="physician",
+    original="Patient reports headaches"
+)
+```
+
+**New Metrics:**
+- **Contradiction Detection**: Identifies contradictions against medical knowledge base
+- **Information Preservation**: Ensures critical information (dosages, warnings) is retained
+- **Hallucination Detection**: Detects medical entities not present in source text
+
+### 📊 Interactive Leaderboards  
+
+Generate beautiful, responsive HTML leaderboards from evaluation results:
+
+```bash
+# Generate leaderboard from results directory
+python -m src.leaderboard \
+    --input results/ \
+    --output docs/index.html \
+    --verbose
+```
+
+**Features:**
+- Overall model rankings with performance breakdowns
+- Audience-specific performance analysis
+- Complexity-level performance comparison
+- Interactive charts powered by Chart.js
+- Responsive design for all devices
+- Self-contained HTML for easy deployment
+
+### 🧪 Comprehensive Testing
+
+MEQ-Bench now includes 90+ unit tests covering:
+
+```bash
+# Run the full test suite
+pytest tests/ -v
+
+# Run specific test modules
+pytest tests/test_data_loaders.py -v
+pytest tests/test_evaluator_metrics.py -v
+pytest tests/test_leaderboard.py -v
+pytest tests/test_process_datasets.py -v
+```
+
+**Test Coverage:**
+- Data loading and processing functionality
+- All evaluation metrics including new safety metrics
+- Leaderboard generation and visualization
+- Error handling and edge cases
+- Performance and integration tests
 
 For more advanced usage examples, see the [examples](examples/) directory.
 
