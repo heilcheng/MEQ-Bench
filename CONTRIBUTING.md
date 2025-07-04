@@ -479,25 +479,221 @@ Report unacceptable behavior to [contact@meq-bench.org]. All reports will be rev
 
 ## Getting Help
 
-### Resources
+We provide multiple channels for getting help and support while working with MEQ-Bench.
 
-- **Documentation**: Check the [docs](docs/) directory
-- **Examples**: See [examples](examples/) directory
-- **Issues**: Search [existing issues](https://github.com/heilcheng/MEQ-Bench/issues)
-- **Discussions**: Use [GitHub Discussions](https://github.com/heilcheng/MEQ-Bench/discussions)
+### 📚 Documentation and Resources
 
-### Contact
+#### Primary Documentation
+- **[Project Documentation](docs/)**: Comprehensive guides and API reference
+- **[README.md](README.md)**: Quick start guide and project overview
+- **[Installation Guide](docs/installation.rst)**: Detailed installation instructions
+- **[Quickstart Tutorial](docs/quickstart.rst)**: Step-by-step tutorial for new users
+- **[API Reference](docs/api/)**: Complete API documentation with examples
 
-- **General Questions**: Create a GitHub Discussion
-- **Bug Reports**: Create a GitHub Issue
-- **Security Issues**: Email [security@meq-bench.org]
-- **Collaboration**: Email [contact@meq-bench.org]
+#### Code Examples
+- **[Basic Usage](examples/basic_usage.py)**: Simple example showing core functionality
+- **[Model Integration Examples](examples/)**: How to integrate different LLM backends
+- **[Evaluation Examples](examples/)**: Custom evaluation scenarios and metrics
+- **[Data Loading Examples](examples/)**: Loading and processing custom datasets
 
-### Community
+#### Technical References
+- **[CHANGELOG.md](CHANGELOG.md)**: Version history and feature updates
+- **[RELEASE_PROCESS.md](RELEASE_PROCESS.md)**: Release notes and versioning information
+- **[Scripts Documentation](scripts/README.md)**: Development and maintenance scripts
 
-- **Weekly Office Hours**: [Details TBD]
-- **Research Meetings**: [Details TBD]
-- **Slack Channel**: [Link TBD]
+### 🆘 Support Channels
+
+#### For Different Types of Issues
+
+**🐛 Bug Reports and Technical Issues**
+- **Where**: [GitHub Issues](https://github.com/heilcheng/MEQ-Bench/issues)
+- **When**: When you encounter errors, unexpected behavior, or performance issues
+- **What to include**:
+  - Clear description of the problem
+  - Steps to reproduce
+  - Environment details (OS, Python version, package versions)
+  - Error messages and stack traces
+  - Minimal code example demonstrating the issue
+
+**💡 Feature Requests and Enhancement Ideas**
+- **Where**: [GitHub Issues](https://github.com/heilcheng/MEQ-Bench/issues) (use "enhancement" label)
+- **When**: When you have ideas for new features or improvements
+- **What to include**:
+  - Use case description
+  - Proposed solution or approach
+  - Benefits to the community
+  - Examples of similar features in other tools
+
+**❓ General Questions and Usage Help**
+- **Where**: [GitHub Discussions](https://github.com/heilcheng/MEQ-Bench/discussions)
+- **When**: For questions about usage, best practices, or concepts
+- **Categories**:
+  - **Q&A**: General usage questions
+  - **Ideas**: Discussion of potential features
+  - **Show and Tell**: Share your work with MEQ-Bench
+  - **General**: Other discussions
+
+**🔬 Research and Scientific Questions**
+- **Where**: [GitHub Discussions](https://github.com/heilcheng/MEQ-Bench/discussions) (Research category)
+- **When**: Questions about evaluation methodologies, metrics, or scientific validity
+- **Topics**: Validation studies, metric interpretation, benchmark design
+
+**🚨 Security Issues**
+- **Where**: Email to [security@meq-bench.org](mailto:security@meq-bench.org)
+- **When**: For security vulnerabilities or sensitive issues
+- **Note**: Please do not report security issues in public GitHub issues
+
+### 🤝 Community and Collaboration
+
+#### Communication Channels
+- **GitHub Discussions**: Primary forum for community interaction
+- **Email**: [contact@meq-bench.org](mailto:contact@meq-bench.org) for project inquiries
+- **Research Collaboration**: [research@meq-bench.org](mailto:research@meq-bench.org) for academic partnerships
+
+#### Community Guidelines
+- **Be respectful**: Maintain professional and courteous communication
+- **Be specific**: Provide detailed information to help others understand your question
+- **Search first**: Check existing issues and discussions before posting
+- **Share knowledge**: Help others when you can answer their questions
+
+### 🔧 Self-Help Resources
+
+#### Before Asking for Help
+
+1. **Check the Documentation**
+   ```bash
+   # View documentation locally
+   cd docs && make html && open _build/html/index.html
+   ```
+
+2. **Search Existing Issues**
+   - Use GitHub's search: `is:issue label:bug your-search-terms`
+   - Check both open and closed issues
+
+3. **Try the Examples**
+   ```bash
+   # Run basic example
+   python examples/basic_usage.py
+   
+   # Check if your environment is working
+   python -c "import src; print('MEQ-Bench imported successfully')"
+   ```
+
+4. **Validate Your Setup**
+   ```bash
+   # Run validation script
+   python scripts/validate_release.py
+   
+   # Run tests to check installation
+   pytest tests/ -v
+   ```
+
+#### Common Issues and Solutions
+
+**Installation Problems**
+```bash
+# Clean installation
+pip uninstall meq-bench
+pip install --no-cache-dir -e .
+
+# Check Python version
+python --version  # Should be 3.8+
+
+# Install with specific dependency groups
+pip install -e .[dev]  # Development dependencies
+pip install -e .[ml]   # Machine learning dependencies
+```
+
+**Import Errors**
+```bash
+# Ensure you're in the project directory
+cd /path/to/MEQ-Bench
+python -c "import src"
+
+# Check PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+```
+
+**Model Integration Issues**
+```bash
+# Test with dummy model first
+python run_benchmark.py --model_name dummy --max_items 5
+
+# Check API credentials
+echo $OPENAI_API_KEY
+echo $ANTHROPIC_API_KEY
+echo $GOOGLE_API_KEY
+```
+
+### 📖 Learning Resources
+
+#### For New Users
+1. **Start with**: [README.md](README.md) → [Installation](docs/installation.rst) → [Quickstart](docs/quickstart.rst)
+2. **Try**: [Basic Usage Example](examples/basic_usage.py)
+3. **Learn**: [Evaluation Metrics Guide](docs/evaluation_metrics.rst)
+4. **Explore**: [Data Loading Guide](docs/data_loading.rst)
+
+#### For Researchers
+1. **Read**: Methodology papers and citations in documentation
+2. **Understand**: [Evaluation Framework](docs/evaluation_metrics.rst)
+3. **Validate**: Use the [LLM-as-a-Judge validation framework](evaluation/validate_judge.py)
+4. **Contribute**: Share validation studies and results
+
+#### For Developers
+1. **Setup**: Development environment with `pip install -e .[dev]`
+2. **Read**: [Coding Conventions](#coding-conventions) in this document
+3. **Follow**: [Testing guidelines](#testing) and run tests
+4. **Use**: Pre-commit hooks for code quality
+
+### 🚀 Quick Help Commands
+
+```bash
+# Get general help
+python run_benchmark.py --help
+
+# Check installation
+python -c "import src; print('✅ MEQ-Bench is working')"
+
+# Run a quick test
+python run_benchmark.py --model_name dummy --max_items 2
+
+# Validate your environment
+python scripts/validate_release.py
+
+# Get version information
+python -c "import src; print(f'MEQ-Bench version: {getattr(src, \"__version__\", \"unknown\")}')"
+
+# Run basic tests
+pytest tests/test_benchmark.py -v
+```
+
+### 📞 Response Times and Expectations
+
+- **GitHub Issues**: We aim to respond within 48 hours
+- **GitHub Discussions**: Community-driven, responses vary
+- **Email**: 3-5 business days for general inquiries
+- **Security Issues**: 24 hours acknowledgment, 1 week for assessment
+
+### 🎯 Getting the Best Help
+
+To get the most effective help:
+
+1. **Be Specific**: Include exact error messages, environment details, and steps to reproduce
+2. **Provide Context**: Explain what you're trying to achieve and what you've already tried
+3. **Use Templates**: Follow issue templates when available
+4. **Share Code**: Provide minimal, reproducible examples
+5. **Follow Up**: Update issues with additional information or solutions found
+
+### 🌟 Contributing Back
+
+If you receive help, consider helping others:
+- Answer questions in GitHub Discussions
+- Improve documentation based on your experience
+- Share useful examples or tutorials
+- Report and fix bugs you encounter
+- Contribute to the codebase
+
+Remember: Every question helps improve MEQ-Bench for the entire community!
 
 ---
 

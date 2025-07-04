@@ -289,22 +289,73 @@ def load_custom_dataset(
     field_mapping: Optional[Dict[str, str]] = None,
     max_items: Optional[int] = None,
     complexity_level: str = "basic",
+    auto_complexity: bool = False,
+    nested_field_separator: str = ".",
+    array_index_format: bool = True,
 ) -> List[MEQBenchItem]:
-    """Load custom dataset and convert to MEQBenchItem objects.
+    """Load custom dataset and convert to MEQBenchItem objects with enhanced field mapping.
+
+    This function provides robust field mapping capabilities including nested field access,
+    array indexing, multiple field combinations, and automatic content generation.
 
     Args:
         data_path: Path to the JSON file containing the dataset.
         field_mapping: Dictionary mapping dataset fields to MEQBenchItem fields.
-                      Example: {'q': 'question', 'a': 'answer', 'topic': 'medical_content'}
+                      Supports nested fields (e.g., 'data.question'), arrays (e.g., 'items[0]'),
+                      and multiple source fields (e.g., ['title', 'description']).
+                      Example mappings:
+                      - {'q': 'question', 'a': 'answer'} - Simple field mapping
+                      - {'content.text': 'medical_content'} - Nested field
+                      - {'responses[0].text': 'answer'} - Array with index
+                      - {('title', 'summary'): 'medical_content'} - Multiple fields combined
         max_items: Maximum number of items to load.
-        complexity_level: Complexity level to assign to all items.
+        complexity_level: Default complexity level to assign to all items.
+        auto_complexity: Whether to automatically calculate complexity levels using text analysis.
+        nested_field_separator: Separator for nested field access (default: '.').
+        array_index_format: Whether to support array index format like 'field[0]' (default: True).
 
     Returns:
         List of MEQBenchItem objects.
+        
+    Raises:
+        FileNotFoundError: If the data file doesn't exist.
+        ValueError: If the data format is invalid or required fields are missing.
+        json.JSONDecodeError: If the JSON file is malformed.
+        
+    Example:
+        ```python
+        # Simple mapping
+        items = load_custom_dataset('data.json', {'q': 'question', 'a': 'answer'})
+        
+        # Nested field mapping
+        items = load_custom_dataset('data.json', {
+            'content.question': 'question',
+            'responses[0].text': 'answer',
+            'metadata.complexity': 'complexity_level'
+        })
+        
+        # Multiple field combination
+        items = load_custom_dataset('data.json', {
+            ('title', 'description', 'summary'): 'medical_content'
+        })
+        ```
     """
-    # Default field mapping
+    # Enhanced default field mapping with common variations
     if field_mapping is None:
-        field_mapping = {"question": "question", "answer": "answer", "content": "medical_content", "id": "id"}
+        field_mapping = {
+            "question": "question",
+            "answer": "answer", 
+            "content": "medical_content",
+            "id": "id",
+            "text": "medical_content",
+            "description": "medical_content",
+            "summary": "medical_content",
+            "complexity": "complexity_level",
+            "difficulty": "complexity_level",
+            "level": "complexity_level",
+            "source": "source_dataset",
+            "dataset": "source_dataset"
+        }
 
     data_file = Path(data_path)
     if not data_file.exists():
@@ -323,26 +374,44 @@ def load_custom_dataset(
 
     for i, item_data in enumerate(items_to_process):
         try:
-            # Extract fields based on mapping
-            question = item_data.get(field_mapping.get("question", "question"), "")
-            answer = item_data.get(field_mapping.get("answer", "answer"), "")
-            content = item_data.get(field_mapping.get("content", "content"), "")
-            item_id = item_data.get(field_mapping.get("id", "id"), f"custom_{i}")
+            # Extract fields using enhanced mapping
+            extracted_fields = _extract_fields_with_mapping(item_data, field_mapping, nested_field_separator)
+            
+            # Get basic fields with fallbacks
+            question = extracted_fields.get("question", "")
+            answer = extracted_fields.get("answer", "")
+            content = extracted_fields.get("medical_content", "")
+            item_id = extracted_fields.get("id", f"custom_{i}")
+            item_complexity = extracted_fields.get("complexity_level", complexity_level)
+            source_dataset = extracted_fields.get("source_dataset", "Custom")
 
-            # Create medical content
-            if content:
-                medical_content = content
-            elif question and answer:
-                medical_content = f"Question: {question.strip()}\\n\\nAnswer: {answer.strip()}"
-            else:
+            # Create medical content with enhanced logic
+            medical_content = _create_medical_content(
+                content=content,
+                question=question, 
+                answer=answer,
+                item_data=item_data,
+                field_mapping=field_mapping,
+                nested_separator=nested_field_separator
+            )
+            
+            if not medical_content:
                 logger.warning(f"Skipping item {i}: no valid content found")
                 continue
+
+            # Auto-calculate complexity if requested
+            if auto_complexity:
+                try:
+                    item_complexity = calculate_complexity_level(medical_content)
+                except Exception as e:
+                    logger.warning(f"Error calculating complexity for item {i}: {e}, using default")
+                    item_complexity = complexity_level
 
             item = MEQBenchItem(
                 id=str(item_id),
                 medical_content=medical_content,
-                complexity_level=complexity_level,
-                source_dataset="Custom",
+                complexity_level=item_complexity,
+                source_dataset=source_dataset,
                 reference_explanations=None,
             )
 
@@ -911,6 +980,176 @@ def load_cochrane_reviews(
         logger.info(f"  - Complexity distribution: {complexity_dist}")
 
     return items
+
+
+def _extract_fields_with_mapping(
+    item_data: Dict[str, Any], 
+    field_mapping: Dict[str, str], 
+    nested_separator: str = "."
+) -> Dict[str, Any]:
+    """Extract fields from item data using enhanced field mapping.
+    
+    Supports nested field access, array indexing, and multiple source fields.
+    
+    Args:
+        item_data: Source data dictionary.
+        field_mapping: Field mapping dictionary.
+        nested_separator: Separator for nested field access.
+        
+    Returns:
+        Dictionary with extracted and mapped fields.
+    """
+    extracted = {}
+    
+    for source_field, target_field in field_mapping.items():
+        try:
+            value = None
+            
+            # Handle multiple source fields (tuple/list)
+            if isinstance(source_field, (tuple, list)):
+                # Combine multiple fields
+                combined_values = []
+                for field in source_field:
+                    field_value = _get_nested_field(item_data, field, nested_separator)
+                    if field_value:
+                        combined_values.append(str(field_value).strip())
+                
+                if combined_values:
+                    value = " ".join(combined_values)
+            else:
+                # Single field extraction
+                value = _get_nested_field(item_data, source_field, nested_separator)
+            
+            if value is not None:
+                extracted[target_field] = value
+                
+        except Exception as e:
+            logger.debug(f"Error extracting field '{source_field}': {e}")
+            continue
+    
+    return extracted
+
+
+def _get_nested_field(data: Dict[str, Any], field_path: str, separator: str = ".") -> Any:
+    """Get value from nested field path with array index support.
+    
+    Args:
+        data: Source data dictionary.
+        field_path: Dot-separated field path (e.g., 'user.profile.name' or 'items[0].title').
+        separator: Field separator character.
+        
+    Returns:
+        Field value or None if not found.
+    """
+    try:
+        current_data = data
+        
+        # Split path and handle array indices
+        parts = field_path.split(separator)
+        
+        for part in parts:
+            if not part:
+                continue
+                
+            # Handle array indexing like 'items[0]'
+            if '[' in part and part.endswith(']'):
+                field_name, index_part = part.split('[', 1)
+                index = int(index_part.rstrip(']'))
+                
+                if field_name:
+                    current_data = current_data[field_name]
+                    
+                if isinstance(current_data, list) and 0 <= index < len(current_data):
+                    current_data = current_data[index]
+                else:
+                    return None
+            else:
+                # Regular field access
+                if isinstance(current_data, dict) and part in current_data:
+                    current_data = current_data[part]
+                else:
+                    return None
+        
+        return current_data
+        
+    except (KeyError, IndexError, ValueError, TypeError):
+        return None
+
+
+def _create_medical_content(
+    content: str,
+    question: str,
+    answer: str,
+    item_data: Dict[str, Any],
+    field_mapping: Dict[str, str],
+    nested_separator: str = "."
+) -> str:
+    """Create medical content from available fields with intelligent fallbacks.
+    
+    Args:
+        content: Direct content field.
+        question: Question field.
+        answer: Answer field.
+        item_data: Original item data for additional field extraction.
+        field_mapping: Field mapping for fallback options.
+        nested_separator: Separator for nested fields.
+        
+    Returns:
+        Constructed medical content string.
+    """
+    # Priority 1: Direct content
+    if content and content.strip():
+        return content.strip()
+    
+    # Priority 2: Question + Answer combination
+    if question and answer:
+        question = question.strip()
+        answer = answer.strip()
+        if question and answer:
+            return f"Question: {question}\\n\\nAnswer: {answer}"
+    
+    # Priority 3: Try to find alternative content fields
+    content_alternatives = [
+        'text', 'description', 'summary', 'body', 'details', 
+        'explanation', 'title', 'content', 'message', 'document'
+    ]
+    
+    for alt_field in content_alternatives:
+        if alt_field not in field_mapping:  # Don't double-process mapped fields
+            alt_value = _get_nested_field(item_data, alt_field, nested_separator)
+            if alt_value and str(alt_value).strip():
+                return str(alt_value).strip()
+    
+    # Priority 4: Combine any available text fields
+    text_fields = []
+    
+    # Check for title/heading
+    for field in ['title', 'heading', 'subject', 'name']:
+        value = _get_nested_field(item_data, field, nested_separator)
+        if value and str(value).strip():
+            text_fields.append(f"Title: {str(value).strip()}")
+            break
+    
+    # Add question if available but no answer
+    if question and question.strip() and not answer:
+        text_fields.append(f"Question: {question.strip()}")
+    
+    # Add answer if available but no question  
+    if answer and answer.strip() and not question:
+        text_fields.append(f"Answer: {answer.strip()}")
+    
+    # Check for description/summary fields
+    for field in ['description', 'summary', 'abstract', 'overview']:
+        value = _get_nested_field(item_data, field, nested_separator)
+        if value and str(value).strip():
+            text_fields.append(str(value).strip())
+            break
+    
+    if text_fields:
+        return "\\n\\n".join(text_fields)
+    
+    # Last resort: return empty string (will be caught by validation)
+    return ""
 
 
 def _validate_benchmark_item(item: MEQBenchItem) -> None:
