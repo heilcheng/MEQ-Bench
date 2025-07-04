@@ -39,8 +39,8 @@ jobs:
       run: |
         # Stop the build if there are Python syntax errors or undefined names
         flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # Run full linting checks - failures will fail the build
+        flake8 src/ tests/ examples/ --count --max-complexity=10 --max-line-length=127 --statistics
     
     - name: Check import sorting with isort
       run: |
@@ -125,7 +125,7 @@ jobs:
     
     - name: Run mypy type checking
       run: |
-        mypy src/ --ignore-missing-imports --check-untyped-defs
+        mypy src/ --check-untyped-defs --strict-optional
 
   security:
     name: Security Scan
@@ -147,7 +147,7 @@ jobs:
     
     - name: Run bandit security scan
       run: |
-        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ -f json -o bandit-report.json
         bandit -r src/ -f txt
 
   docs:

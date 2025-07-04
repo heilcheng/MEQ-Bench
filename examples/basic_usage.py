@@ -197,6 +197,9 @@ def main():
     print("MEQ-Bench Basic Usage Example with Hugging Face Integration")
     print("=" * 60)
     
+    # Check if running in non-interactive environment (CI/CD)
+    is_interactive = os.isatty(sys.stdin.fileno())
+    
     # Initialize benchmark
     bench = MEQBench()
     
@@ -219,44 +222,51 @@ def main():
     print("\nGenerating explanations for sample content...")
     medical_content = "Diabetes is a condition where blood sugar levels are too high. It requires careful management through diet, exercise, and sometimes medication."
     
-    # Ask user which model to use
-    print("\nChoose model for explanation generation:")
-    print("1. Dummy model (fast, for testing)")
-    print("2. Hugging Face model (requires transformers library)")
-    
-    choice = input("Enter choice (1 or 2, default=1): ").strip()
-    
-    if choice == "2":
-        print("\nUsing Hugging Face model...")
-        print("Note: This requires 'transformers' and 'torch' libraries:")
-        print("pip install transformers torch")
+    # Choose model based on environment
+    if is_interactive:
+        # Ask user which model to use (interactive mode)
+        print("\nChoose model for explanation generation:")
+        print("1. Dummy model (fast, for testing)")
+        print("2. Hugging Face model (requires transformers library)")
         
-        # Option to specify model name
-        model_choice = input("\nChoose model (or press Enter for default):\n"
-                           "1. mistralai/Mistral-7B-Instruct-v0.2 (default, ~7B params)\n"
-                           "2. microsoft/DialoGPT-medium (smaller, faster)\n"
-                           "3. Custom model name\n"
-                           "Choice: ").strip()
+        choice = input("Enter choice (1 or 2, default=1): ").strip()
         
-        if model_choice == "2":
-            model_name = "microsoft/DialoGPT-medium"
-        elif model_choice == "3":
-            model_name = input("Enter model name: ").strip()
+        if choice == "2":
+            print("\nUsing Hugging Face model...")
+            print("Note: This requires 'transformers' and 'torch' libraries:")
+            print("pip install transformers torch")
+            
+            # Option to specify model name
+            model_choice = input("\nChoose model (or press Enter for default):\n"
+                               "1. mistralai/Mistral-7B-Instruct-v0.2 (default, ~7B params)\n"
+                               "2. microsoft/DialoGPT-medium (smaller, faster)\n"
+                               "3. Custom model name\n"
+                               "Choice: ").strip()
+            
+            if model_choice == "2":
+                model_name = "microsoft/DialoGPT-medium"
+            elif model_choice == "3":
+                model_name = input("Enter model name: ").strip()
+            else:
+                model_name = "mistralai/Mistral-7B-Instruct-v0.2"
+            
+            print(f"\nLoading model: {model_name}")
+            print("This may take a few minutes on first run...")
+            
+            # Create model function with specified model
+            def hf_model_function(prompt: str) -> str:
+                return generate_with_huggingface(prompt, model_name)
+            
+            model_function = hf_model_function
+            model_type = f"Hugging Face ({model_name})"
+            
         else:
-            model_name = "mistralai/Mistral-7B-Instruct-v0.2"
-        
-        print(f"\nLoading model: {model_name}")
-        print("This may take a few minutes on first run...")
-        
-        # Create model function with specified model
-        def hf_model_function(prompt: str) -> str:
-            return generate_with_huggingface(prompt, model_name)
-        
-        model_function = hf_model_function
-        model_type = f"Hugging Face ({model_name})"
-        
+            print("\nUsing dummy model...")
+            model_function = dummy_model_function
+            model_type = "Dummy model"
     else:
-        print("\nUsing dummy model...")
+        # Non-interactive mode (CI/CD) - use dummy model by default
+        print("\nNon-interactive environment detected, using dummy model...")
         model_function = dummy_model_function
         model_type = "Dummy model"
     
@@ -293,14 +303,24 @@ def main():
         print("This might be due to missing dependencies or configuration.")
     
     # Option to run full benchmark evaluation
-    run_full = input("\nRun full benchmark evaluation? (y/N): ").strip().lower()
+    if is_interactive:
+        run_full = input("\nRun full benchmark evaluation? (y/N): ").strip().lower()
+    else:
+        # In non-interactive mode, run a minimal evaluation for testing
+        run_full = 'y'
+        print("\nNon-interactive mode: Running minimal benchmark evaluation...")
     
     if run_full == 'y':
-        print("\nRunning full benchmark evaluation...")
-        print("Note: This may take several minutes with real models...")
+        if is_interactive:
+            print("\nRunning full benchmark evaluation...")
+            print("Note: This may take several minutes with real models...")
+            max_items = 2
+        else:
+            # In CI/CD, run a very minimal test
+            max_items = 1
         
         try:
-            full_results = bench.evaluate_model(model_function, max_items=2)
+            full_results = bench.evaluate_model(model_function, max_items=max_items)
             
             print("\nFull Benchmark Results Summary:")
             summary = full_results['summary']
@@ -309,22 +329,32 @@ def main():
                     print(f"{key}: {value:.3f}")
             
             # Save results
-            output_path = f"sample_results_{model_type.replace(' ', '_').replace('(', '').replace(')', '')}.json"
-            bench.save_results(full_results, output_path)
-            print(f"\nResults saved to: {output_path}")
+            if is_interactive:
+                output_path = f"sample_results_{model_type.replace(' ', '_').replace('(', '').replace(')', '')}.json"
+                bench.save_results(full_results, output_path)
+                print(f"\nResults saved to: {output_path}")
+            else:
+                print("Results generated successfully (not saved in CI/CD mode)")
             
         except Exception as e:
             print(f"Full evaluation failed: {e}")
+            if not is_interactive:
+                # In CI/CD mode, we want to fail if the evaluation doesn't work
+                raise
     
     print("\n" + "=" * 60)
-    print("Example completed!")
-    print("\nTo use Hugging Face models in your own code:")
-    print("1. Install required libraries: pip install transformers torch")
-    print("2. Use the generate_with_huggingface function")
-    print("3. Choose models based on your hardware:")
-    print("   - CPU: smaller models like DialoGPT-medium")
-    print("   - GPU: larger models like Mistral-7B-Instruct-v0.2")
-    print("4. Adjust generation parameters for quality vs speed")
+    if is_interactive:
+        print("Example completed!")
+        print("\nTo use Hugging Face models in your own code:")
+        print("1. Install required libraries: pip install transformers torch")
+        print("2. Use the generate_with_huggingface function")
+        print("3. Choose models based on your hardware:")
+        print("   - CPU: smaller models like DialoGPT-medium")
+        print("   - GPU: larger models like Mistral-7B-Instruct-v0.2")
+        print("4. Adjust generation parameters for quality vs speed")
+    else:
+        print("Integration test completed successfully!")
+        print("The MEQ-Bench framework is working correctly in non-interactive mode.")
 
 
 if __name__ == "__main__":
