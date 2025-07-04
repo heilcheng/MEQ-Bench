@@ -291,6 +291,19 @@ class LeaderboardGenerator:
 
         <div id="overall-tab" class="tab-content active">
             <h2>Overall Model Rankings</h2>
+            <div class="controls-bar">
+                <div class="search-container">
+                    <input type="text" id="modelSearch" placeholder="🔍 Search models..." onkeyup="filterTable()">
+                </div>
+                <div class="filter-container">
+                    <select id="sortSelect" onchange="sortTable()">
+                        <option value="rank">Sort by Rank</option>
+                        <option value="score">Sort by Score</option>
+                        <option value="name">Sort by Name</option>
+                        <option value="items">Sort by Items</option>
+                    </select>
+                </div>
+            </div>
             <div class="table-container">
                 {self._generate_overall_rankings_table(ranked_models)}
             </div>
@@ -310,12 +323,19 @@ class LeaderboardGenerator:
             <h2>Analytics & Visualizations</h2>
             <div class="charts-container">
                 <div class="chart-item">
-                    <h3>Model Performance Comparison</h3>
+                    <h3>📊 Model Performance Comparison</h3>
+                    <p class="chart-description">Comparison of overall scores across evaluated models</p>
                     <canvas id="performanceChart" width="400" height="200"></canvas>
                 </div>
                 <div class="chart-item">
-                    <h3>Audience Performance Distribution</h3>
+                    <h3>🎯 Audience Performance Radar</h3>
+                    <p class="chart-description">Average performance distribution across target audiences</p>
                     <canvas id="audienceChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-item">
+                    <h3>📈 Performance Trends</h3>
+                    <p class="chart-description">Score distribution and statistical analysis</p>
+                    <canvas id="distributionChart" width="400" height="200"></canvas>
                 </div>
             </div>
         </div>
@@ -324,8 +344,8 @@ class LeaderboardGenerator:
             <div class="footer-content">
                 <p><strong>About MEQ-Bench:</strong> A benchmark for evaluating medical language models on audience-adaptive explanation quality.</p>
                 <p>Evaluation metrics include readability, terminology appropriateness, safety compliance, information coverage, and overall quality.</p>
-                <p>📧 Contact: <a href="mailto:meq-bench@example.com">meq-bench@example.com</a> | 
-                   🐙 GitHub: <a href="https://github.com/meq-bench/meq-bench">meq-bench/meq-bench</a></p>
+                <p>📧 Contact: <a href="mailto:meq-bench@research.org">meq-bench@research.org</a> | 
+                   🐙 GitHub: <a href="https://github.com/heilcheng/MEQ-Bench">heilcheng/MEQ-Bench</a></p>
             </div>
         </footer>
     </div>
@@ -397,6 +417,7 @@ class LeaderboardGenerator:
             font-size: 1.8rem;
             font-weight: 700;
             color: #ffd700;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .stat-label {
@@ -481,6 +502,8 @@ class LeaderboardGenerator:
 
         tr:hover {
             background: #f8fafc;
+            transform: translateX(4px);
+            transition: all 0.2s ease;
         }
 
         .rank {
@@ -501,16 +524,19 @@ class LeaderboardGenerator:
         .rank-1 {
             background: linear-gradient(135deg, #ffd700, #ffed4e);
             color: #92400e;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
         }
 
         .rank-2 {
             background: linear-gradient(135deg, #c0c0c0, #e5e7eb);
             color: #374151;
+            box-shadow: 0 2px 8px rgba(192, 192, 192, 0.3);
         }
 
         .rank-3 {
             background: linear-gradient(135deg, #cd7f32, #d97706);
             color: white;
+            box-shadow: 0 2px 8px rgba(205, 127, 50, 0.3);
         }
 
         .audience-section, .complexity-section {
@@ -527,6 +553,46 @@ class LeaderboardGenerator:
             text-transform: capitalize;
         }
 
+        .controls-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-container input {
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            width: 300px;
+            max-width: 100%;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-container input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .filter-container select {
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-container select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
         .charts-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
@@ -538,11 +604,25 @@ class LeaderboardGenerator:
             padding: 1.5rem;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .chart-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
 
         .chart-item h3 {
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             color: #1f2937;
+            font-size: 1.1rem;
+        }
+
+        .chart-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            font-style: italic;
         }
 
         footer {
@@ -634,9 +714,18 @@ class LeaderboardGenerator:
                 avg_score = sum(scores) / len(scores) if scores else 0
                 audience_scores[audience] = avg_score
 
+            # Add trophy/medal icons for top 3
+            rank_icon = ""
+            if model["rank"] == 1:
+                rank_icon = "🏆"
+            elif model["rank"] == 2:
+                rank_icon = "🥈"
+            elif model["rank"] == 3:
+                rank_icon = "🥉"
+            
             table_html += f"""
                 <tr class="{rank_class}">
-                    <td class="rank">#{model['rank']}</td>
+                    <td class="rank">{rank_icon} #{model['rank']}</td>
                     <td class="model-name">{model['model_name']}</td>
                     <td class="score">{model['overall_score']:.3f}</td>
                     <td>{model['total_items']}</td>
@@ -822,19 +911,151 @@ class LeaderboardGenerator:
                         backgroundColor: 'rgba(16, 185, 129, 0.2)',
                         borderColor: 'rgba(16, 185, 129, 1)',
                         borderWidth: 2,
-                        pointBackgroundColor: 'rgba(16, 185, 129, 1)'
+                        pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
                     }}]
                 }},
                 options: {{
                     responsive: true,
+                    plugins: {{
+                        legend: {{
+                            display: false
+                        }}
+                    }},
                     scales: {{
                         r: {{
                             beginAtZero: true,
-                            max: 1
+                            max: 1,
+                            grid: {{
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }},
+                            pointLabels: {{
+                                font: {{
+                                    size: 12,
+                                    weight: 'bold'
+                                }}
+                            }}
                         }}
                     }}
                 }}
             }});
+            
+            // Distribution chart
+            const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+            const allScores = {json.dumps(model_scores)};
+            const scoreLabels = ['0.0-0.2', '0.2-0.4', '0.4-0.6', '0.6-0.8', '0.8-1.0'];
+            const scoreDistribution = [0, 0, 0, 0, 0];
+            
+            allScores.forEach(score => {{
+                if (score < 0.2) scoreDistribution[0]++;
+                else if (score < 0.4) scoreDistribution[1]++;
+                else if (score < 0.6) scoreDistribution[2]++;
+                else if (score < 0.8) scoreDistribution[3]++;
+                else scoreDistribution[4]++;
+            }});
+            
+            new Chart(distributionCtx, {{
+                type: 'doughnut',
+                data: {{
+                    labels: scoreLabels,
+                    datasets: [{{
+                        data: scoreDistribution,
+                        backgroundColor: [
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(34, 197, 94, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(239, 68, 68, 1)',
+                            'rgba(245, 158, 11, 1)',
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(34, 197, 94, 1)'
+                        ],
+                        borderWidth: 2
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{
+                        legend: {{
+                            position: 'bottom',
+                            labels: {{
+                                padding: 20,
+                                usePointStyle: true
+                            }}
+                        }},
+                        tooltip: {{
+                            callbacks: {{
+                                label: function(context) {{
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return context.label + ': ' + context.parsed + ' models (' + percentage + '%)';
+                                }}
+                            }}
+                        }}
+                    }}
+                }}
+            }});
+        }}
+        
+        function filterTable() {{
+            const input = document.getElementById('modelSearch');
+            const filter = input.value.toLowerCase();
+            const table = document.querySelector('#overall-tab table');
+            const rows = table.getElementsByTagName('tr');
+            
+            for (let i = 1; i < rows.length; i++) {{
+                const modelCell = rows[i].getElementsByTagName('td')[1];
+                if (modelCell) {{
+                    const modelName = modelCell.textContent || modelCell.innerText;
+                    if (modelName.toLowerCase().indexOf(filter) > -1) {{
+                        rows[i].style.display = '';
+                    }} else {{
+                        rows[i].style.display = 'none';
+                    }}
+                }}
+            }}
+        }}
+        
+        function sortTable() {{
+            const select = document.getElementById('sortSelect');
+            const table = document.querySelector('#overall-tab table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.getElementsByTagName('tr'));
+            const sortBy = select.value;
+            
+            rows.sort((a, b) => {{
+                let aVal, bVal;
+                
+                switch(sortBy) {{
+                    case 'rank':
+                        aVal = parseInt(a.getElementsByTagName('td')[0].textContent.replace('#', ''));
+                        bVal = parseInt(b.getElementsByTagName('td')[0].textContent.replace('#', ''));
+                        return aVal - bVal;
+                    case 'score':
+                        aVal = parseFloat(a.getElementsByTagName('td')[2].textContent);
+                        bVal = parseFloat(b.getElementsByTagName('td')[2].textContent);
+                        return bVal - aVal; // Descending order for scores
+                    case 'name':
+                        aVal = a.getElementsByTagName('td')[1].textContent.toLowerCase();
+                        bVal = b.getElementsByTagName('td')[1].textContent.toLowerCase();
+                        return aVal.localeCompare(bVal);
+                    case 'items':
+                        aVal = parseInt(a.getElementsByTagName('td')[3].textContent);
+                        bVal = parseInt(b.getElementsByTagName('td')[3].textContent);
+                        return bVal - aVal; // Descending order for items
+                    default:
+                        return 0;
+                }}
+            }});
+            
+            // Clear tbody and append sorted rows
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
         }}
         
         // Initialize page
